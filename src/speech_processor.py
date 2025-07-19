@@ -58,12 +58,12 @@ class SpeechProcessor:
             print(f"Error loading model: {e}")
             raise
 
-    def transcribe(self, audio_data: np.ndarray) -> Tuple[str, float]:
+    def transcribe(self, audio_data: np.ndarray) -> Tuple[str, float, str, float]:
         if self.model is None:
             raise RuntimeError("Model not loaded")
 
         if audio_data is None or len(audio_data) == 0:
-            return "", 0.0
+            return "", 0.0, "", 0.0
 
         try:
             transcribe_params = {
@@ -99,16 +99,11 @@ class SpeechProcessor:
 
             full_text = " ".join(text_segments).strip()
 
-            print(f"Transcription completed. Duration: {total_duration:.2f}s")
-            print(
-                f"Detected language: {info.language} (confidence: {info.language_probability:.2f})"
-            )
-
-            return full_text, total_duration
+            return full_text, total_duration, info.language, info.language_probability
 
         except Exception as e:
             print(f"Error during transcription: {e}")
-            return "", 0.0
+            return "", 0.0, "", 0.0
 
     def transcribe_with_timestamps(
         self, audio_data: np.ndarray

@@ -78,7 +78,7 @@ class AudioRecorder:
 
         self.is_recording = True
         self.audio_data = []
-        print("Recording started...")
+        print("🎤 Recording started...")
 
     def stop_recording(self) -> Optional[np.ndarray]:
         if not self.is_recording:
@@ -97,7 +97,7 @@ class AudioRecorder:
         self.audio_data.clear()
 
         print(
-            f"Recording stopped. Captured {len(audio_array)} samples ({len(audio_array) / self.sample_rate:.2f}s)"
+            f"🔄 Recording stopped. Captured {len(audio_array)} samples ({len(audio_array) / self.sample_rate:.2f}s)"
         )
         return audio_array
 

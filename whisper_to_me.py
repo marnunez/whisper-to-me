@@ -51,6 +51,8 @@ class WhisperToMe:
         debug=False,
         language=None,
         use_tray=True,
+        tap_mode=False,
+        discard_key=keyboard.Key.esc,
     ):
         """
         Initialize the Whisper-to-Me application.
@@ -63,6 +65,8 @@ class WhisperToMe:
             debug: Enable debug mode to save audio files
             language: Target language (None for auto-detection, 'en', 'es', 'fr', etc.)
             use_tray: Enable system tray icon
+            tap_mode: Use tap-to-start/tap-to-stop instead of push-to-talk
+            discard_key: Key to discard recording without transcription
         """
         self.trigger_key = trigger_key
         self.is_recording = False
@@ -70,6 +74,8 @@ class WhisperToMe:
         self.recording_counter = 0
         self.use_tray = use_tray
         self.tray_icon = None
+        self.tap_mode = tap_mode
+        self.discard_key = discard_key
 
         # Initialize components
         print("Initializing Whisper-to-Me...")
@@ -86,73 +92,114 @@ class WhisperToMe:
             self.tray_icon = TrayIcon(on_quit=self.shutdown)
             self.tray_icon.start()
 
-        print(f"✓ Ready! Press and hold {self.trigger_key} to record")
+        if self.tap_mode:
+            print(f"✓ Ready! Tap {self.trigger_key} to start/stop recording")
+            print(f"  Press {self.discard_key} while recording to discard")
+        else:
+            print(f"✓ Ready! Press and hold {self.trigger_key} to record")
         print("Press Ctrl+C in terminal to exit")
         print("Note: This captures keys globally across all applications")
 
     def on_key_press(self, key):
         """
-        Handle key press events. Start recording when trigger key is pressed.
+        Handle key press events. Behavior depends on recording mode.
 
         Args:
             key: The key that was pressed
         """
-        if key == self.trigger_key and not self.is_recording:
-            self.is_recording = True
-            self.audio_recorder.start_recording()
-            print("🎤 Recording...")
-
-            # Update tray icon
-            if self.tray_icon:
-                self.tray_icon.update_icon(recording=True)
+        if self.tap_mode:
+            # Tap mode: toggle recording on trigger key press
+            if key == self.trigger_key:
+                if not self.is_recording:
+                    # Start recording
+                    self.is_recording = True
+                    self.audio_recorder.start_recording()
+                    # Update tray icon
+                    if self.tray_icon:
+                        self.tray_icon.update_icon(recording=True)
+                else:
+                    # Stop recording and transcribe
+                    self._stop_and_transcribe()
+            elif key == self.discard_key and self.is_recording:
+                # Discard current recording
+                self._discard_recording()
+        else:
+            # Push-to-talk mode: start recording on trigger key press
+            if key == self.trigger_key and not self.is_recording:
+                self.is_recording = True
+                self.audio_recorder.start_recording()
+                # Update tray icon
+                if self.tray_icon:
+                    self.tray_icon.update_icon(recording=True)
 
     def on_key_release(self, key):
         """
-        Handle key release events. Stop recording and transcribe when trigger key is released.
+        Handle key release events. Only used in push-to-talk mode.
 
         Args:
             key: The key that was released
         """
-        if key == self.trigger_key and self.is_recording:
-            self.is_recording = False
+        if not self.tap_mode and key == self.trigger_key and self.is_recording:
+            # Push-to-talk mode: stop recording and transcribe on key release
+            self._stop_and_transcribe()
 
-            # Update tray icon
-            if self.tray_icon:
-                self.tray_icon.update_icon(recording=False)
+    def _stop_and_transcribe(self):
+        """Stop recording and transcribe the audio."""
+        self.is_recording = False
 
-            # Stop recording and get audio
-            audio_data = self.audio_recorder.stop_recording()
+        # Update tray icon
+        if self.tray_icon:
+            self.tray_icon.update_icon(recording=False)
 
-            if audio_data is not None and len(audio_data) > 0:
-                print("🔄 Transcribing...")
+        # Stop recording and get audio
+        audio_data = self.audio_recorder.stop_recording()
 
-                # Save audio for debugging if enabled
-                if self.debug:
-                    import soundfile as sf
-                    from datetime import datetime
+        if audio_data is not None and len(audio_data) > 0:
 
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
-                    debug_filename = f"debug_recording_{timestamp}.wav"
-                    sf.write(
-                        debug_filename, audio_data, self.audio_recorder.sample_rate
+            # Save audio for debugging if enabled
+            if self.debug:
+                import soundfile as sf
+                from datetime import datetime
+
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
+                debug_filename = f"debug_recording_{timestamp}.wav"
+                sf.write(debug_filename, audio_data, self.audio_recorder.sample_rate)
+                print(f"🐛 Debug: Saved audio as {debug_filename}")
+
+            # Prepare audio for Whisper and transcribe
+            whisper_audio = self.audio_recorder.get_audio_data_for_whisper(audio_data)
+            text, duration, language, confidence = self.speech_processor.transcribe(
+                whisper_audio
+            )
+
+            if text and text.strip():
+                print("✓ Transcription completed")
+                if language:
+                    print(
+                        f"🌐 Detected language: {language} (confidence: {confidence:.2f})"
                     )
-                    print(f"🐛 Debug: Saved audio as {debug_filename}")
-
-                # Prepare audio for Whisper and transcribe
-                whisper_audio = self.audio_recorder.get_audio_data_for_whisper(
-                    audio_data
-                )
-                text, duration = self.speech_processor.transcribe(whisper_audio)
-
-                if text and text.strip():
-                    print(f"✓ '{text}' (duration: {duration:.2f}s)")
-                    self.keystroke_handler.type_text_fast(text)
-                else:
-                    print("✗ No speech detected")
-
-                self.recording_counter += 1
+                if self.debug:
+                    print(f"   '{text}' (duration: {duration:.2f}s)")
+                self.keystroke_handler.type_text_fast(text)
             else:
-                print("✗ No audio recorded")
+                print("✗ No speech detected")
+
+            self.recording_counter += 1
+        else:
+            print("✗ No audio recorded")
+
+    def _discard_recording(self):
+        """Discard the current recording without transcription."""
+        self.is_recording = False
+
+        # Update tray icon
+        if self.tray_icon:
+            self.tray_icon.update_icon(recording=False)
+
+        # Stop recording and discard audio
+        _ = self.audio_recorder.stop_recording()
+
+        print("🗑️ Recording discarded")
 
     def run(self):
         """
@@ -190,10 +237,12 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  %(prog)s                              # Use default settings
+  %(prog)s                              # Use default settings (push-to-talk)
   %(prog)s --key caps_lock              # Use caps lock as trigger
   %(prog)s --model base --device cpu    # Use smaller model on CPU
   %(prog)s --debug --audio-device 2     # Debug mode with specific device
+  %(prog)s --tap-mode                   # Use tap-to-start/tap-to-stop mode
+  %(prog)s --tap-mode --discard-key del # Tap mode with delete key to discard
   %(prog)s --list-devices               # Show available audio devices
         """,
     )
@@ -232,6 +281,16 @@ Examples:
         action="store_true",
         help="Disable system tray icon",
     )
+    parser.add_argument(
+        "--tap-mode",
+        action="store_true",
+        help="Use tap-to-start/tap-to-stop instead of push-to-talk",
+    )
+    parser.add_argument(
+        "--discard-key",
+        default="esc",
+        help="Key to discard recording in tap mode (default: esc)",
+    )
 
     args = parser.parse_args()
 
@@ -252,7 +311,7 @@ Examples:
         return
 
     # Parse and validate trigger key
-    trigger_key_map = {
+    key_map = {
         "ctrl": keyboard.Key.ctrl_l,
         "alt": keyboard.Key.alt_l,
         "shift": keyboard.Key.shift_l,
@@ -261,14 +320,27 @@ Examples:
         "tab": keyboard.Key.tab,
         "scroll_lock": keyboard.Key.scroll_lock,
         "pause": keyboard.Key.pause,
+        "esc": keyboard.Key.esc,
+        "escape": keyboard.Key.esc,
+        "del": keyboard.Key.delete,
+        "delete": keyboard.Key.delete,
+        "backspace": keyboard.Key.backspace,
     }
 
-    trigger_key = trigger_key_map.get(args.key.lower())
+    trigger_key = key_map.get(args.key.lower())
     if trigger_key is None and hasattr(keyboard.Key, args.key.lower()):
         trigger_key = getattr(keyboard.Key, args.key.lower())
     elif trigger_key is None:
         trigger_key = keyboard.Key.scroll_lock
         print(f"Warning: Unknown key '{args.key}', using scroll_lock instead")
+
+    # Parse and validate discard key
+    discard_key = key_map.get(args.discard_key.lower())
+    if discard_key is None and hasattr(keyboard.Key, args.discard_key.lower()):
+        discard_key = getattr(keyboard.Key, args.discard_key.lower())
+    elif discard_key is None:
+        discard_key = keyboard.Key.esc
+        print(f"Warning: Unknown discard key '{args.discard_key}', using esc instead")
 
     # Process language parameter
     language = None if args.language.lower() == "auto" else args.language
@@ -284,6 +356,8 @@ Examples:
             debug=args.debug,
             language=language,
             use_tray=not args.no_tray,
+            tap_mode=args.tap_mode,
+            discard_key=discard_key,
         )
 
         app.run()

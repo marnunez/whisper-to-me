@@ -6,13 +6,14 @@ keystrokes.
 
 ## Features
 
-- **Push-to-talk recording** with configurable hotkeys
+- **Push-to-talk and tap-to-start** recording modes with configurable hotkeys
 - **Local speech recognition** (no internet required)
 - **Global hotkey support** across all applications
 - **Multiple language support** with auto-detection
 - **Multiple audio device support**
 - **System tray integration** with visual recording indicator
 - **Single instance protection** - prevents multiple instances
+- **Recording discard option** in tap mode (press Esc to cancel)
 - **Debug mode** for troubleshooting
 - **High-accuracy transcription** using FasterWhisper
 - **Real-time performance** optimized for responsiveness
@@ -74,8 +75,14 @@ The application will:
 1. Load the Whisper model (first run may take a moment)
 2. Show a system tray icon (microphone)
 3. Listen for the trigger key (Scroll Lock by default)
+
+**Push-to-talk mode (default):**
 4. Press and hold the trigger key to record
 5. Release to transcribe and type the text
+
+**Tap mode (--tap-mode):**
+4. Tap the trigger key to start recording
+5. Tap again to stop and transcribe, or press Esc to discard
 
 ### Command Line Options
 
@@ -91,6 +98,8 @@ Options:
   --audio-device ID    Audio device ID to use
   --debug             Save recorded audio files for debugging
   --no-tray           Disable system tray icon
+  --tap-mode          Use tap-to-start/tap-to-stop instead of push-to-talk
+  --discard-key KEY   Key to discard recording in tap mode (default: esc)
   --help              Show help message
 ```
 
@@ -111,6 +120,12 @@ whisper-to-me --no-tray
 
 # List available audio devices
 whisper-to-me --list-devices
+
+# Use tap-to-start/tap-to-stop mode
+whisper-to-me --tap-mode
+
+# Tap mode with delete key to discard recordings
+whisper-to-me --tap-mode --discard-key delete
 ```
 
 ### System Tray
