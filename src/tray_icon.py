@@ -9,7 +9,7 @@ import pystray
 from PIL import Image, ImageDraw
 import threading
 import os
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 
 
 class TrayIcon:
@@ -22,17 +22,30 @@ class TrayIcon:
     - Cross-platform support
     """
 
-    def __init__(self, on_quit: Optional[Callable] = None):
+    def __init__(
+        self,
+        on_quit: Optional[Callable] = None,
+        on_profile_change: Optional[Callable[[str], None]] = None,
+        get_profiles: Optional[Callable[[], List[str]]] = None,
+        get_current_profile: Optional[Callable[[], str]] = None,
+    ):
         """
         Initialize the tray icon.
 
         Args:
             on_quit: Callback function to call when quit is selected
+            on_profile_change: Callback function to call when profile is changed
+            get_profiles: Function to get list of available profiles
+            get_current_profile: Function to get current active profile
         """
         self.icon: Optional[pystray.Icon] = None
         self.on_quit_callback = on_quit
+        self.on_profile_change_callback = on_profile_change
+        self.get_profiles_callback = get_profiles
+        self.get_current_profile_callback = get_current_profile
         self.is_recording = False
         self._running = False
+        self.current_profile = "default"
 
     def create_image(self, recording: bool = False) -> Image.Image:
         """
@@ -124,11 +137,40 @@ class TrayIcon:
         """
         self.is_recording = recording
         if self.icon:
-            self.icon.icon = self.create_image(recording)
+            try:
+                self.icon.icon = self.create_image(recording)
+            except Exception as e:
+                print(f"❌ Error updating icon: {e}")
+
+    def update_profile(self, profile_name: str):
+        """Update the current profile and refresh the menu."""
+        self.current_profile = profile_name
+        if self.icon:
+            try:
+                # Refresh the menu
+                self.icon.menu = self.create_menu()
+                # Update tooltip
+                self.icon.title = f"Whisper-to-Me (Profile: {profile_name})"
+            except Exception as e:
+                print(f"❌ Error updating profile: {e}")
+
+    def refresh_menu(self):
+        """Manually refresh the tray menu."""
+        if self.icon:
+            try:
+                self.icon.menu = self.create_menu()
+            except Exception as e:
+                print(f"❌ Error refreshing menu: {e}")
 
     def on_activate(self, icon, item):
-        """Handle menu item activation."""
+        """Handle menu item activation (left-click on icon)."""
         pass
+
+    def on_profile_select(self, icon, item, profile_name: str):
+        """Handle profile selection from menu."""
+        if self.on_profile_change_callback:
+            self.on_profile_change_callback(profile_name)
+        self.update_profile(profile_name)
 
     def on_quit(self, icon, item):
         """Handle quit menu item."""
@@ -143,32 +185,76 @@ class TrayIcon:
         Returns:
             Menu object with options
         """
-        return pystray.Menu(
-            pystray.MenuItem(
-                "Whisper-to-Me", self.on_activate, default=True, enabled=False
-            ),
+        # Get current profile for display
+        current_profile = self.current_profile
+        if self.get_current_profile_callback:
+            current_profile = self.get_current_profile_callback()
+            self.current_profile = current_profile
+
+        # Get available profiles for menu
+        profiles = []
+        if self.get_profiles_callback:
+            profiles = self.get_profiles_callback()
+
+        menu_items = [
+            pystray.MenuItem("Whisper-to-Me", self.on_activate, default=True, enabled=False),
+            pystray.MenuItem(f"Profile: {current_profile}", None, enabled=False),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem(
-                lambda item: f"Status: {'Recording' if self.is_recording else 'Ready'}",
-                self.on_activate,
-                enabled=False,
-            ),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Quit", self.on_quit),
-        )
+        ]
+
+        # Add profile switching options if multiple profiles exist
+        if len(profiles) > 1:
+            profile_menu_items = []
+            for profile in profiles:
+                profile_menu_items.append(
+                    pystray.MenuItem(
+                        profile,
+                        self._create_profile_switch_handler(profile)
+                    )
+                )
+            menu_items.append(pystray.MenuItem("Switch Profile", pystray.Menu(*profile_menu_items)))
+            menu_items.append(pystray.Menu.SEPARATOR)
+
+        menu_items.append(pystray.MenuItem("Quit", self.on_quit))
+        
+        return pystray.Menu(*menu_items)
+
+
+    def _create_profile_switch_handler(self, profile_name: str):
+        """Create a handler for profile switching."""
+        def handler(icon, item):
+            self.on_profile_select(icon, item, profile_name)
+        return handler
 
     def run(self):
         """Run the system tray icon."""
         self._running = True
-        self.icon = pystray.Icon(
-            "whisper-to-me",
-            self.create_image(),
-            "Whisper-to-Me - Press and hold trigger key to record",
-            menu=self.create_menu(),
-        )
 
-        # Run the icon
-        self.icon.run()
+        # Get current profile for tooltip
+        current_profile = self.current_profile
+        if self.get_current_profile_callback:
+            current_profile = self.get_current_profile_callback()
+            self.current_profile = current_profile
+
+        
+        try:
+            # Create the menu
+            menu = self.create_menu()
+            
+            self.icon = pystray.Icon(
+                "whisper-to-me",
+                self.create_image(),
+                f"Whisper-to-Me (Profile: {current_profile})",
+                menu=menu,
+            )
+            
+            # Run the icon
+            self.icon.run()
+            
+        except Exception as e:
+            print(f"❌ Error creating/running tray icon: {e}")
+            import traceback
+            traceback.print_exc()
 
     def start(self):
         """Start the tray icon in a separate thread."""
