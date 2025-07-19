@@ -197,7 +197,9 @@ class TrayIcon:
             profiles = self.get_profiles_callback()
 
         menu_items = [
-            pystray.MenuItem("Whisper-to-Me", self.on_activate, default=True, enabled=False),
+            pystray.MenuItem(
+                "Whisper-to-Me", self.on_activate, default=True, enabled=False
+            ),
             pystray.MenuItem(f"Profile: {current_profile}", None, enabled=False),
             pystray.Menu.SEPARATOR,
         ]
@@ -208,22 +210,24 @@ class TrayIcon:
             for profile in profiles:
                 profile_menu_items.append(
                     pystray.MenuItem(
-                        profile,
-                        self._create_profile_switch_handler(profile)
+                        profile, self._create_profile_switch_handler(profile)
                     )
                 )
-            menu_items.append(pystray.MenuItem("Switch Profile", pystray.Menu(*profile_menu_items)))
+            menu_items.append(
+                pystray.MenuItem("Switch Profile", pystray.Menu(*profile_menu_items))
+            )
             menu_items.append(pystray.Menu.SEPARATOR)
 
         menu_items.append(pystray.MenuItem("Quit", self.on_quit))
-        
-        return pystray.Menu(*menu_items)
 
+        return pystray.Menu(*menu_items)
 
     def _create_profile_switch_handler(self, profile_name: str):
         """Create a handler for profile switching."""
+
         def handler(icon, item):
             self.on_profile_select(icon, item, profile_name)
+
         return handler
 
     def run(self):
@@ -236,24 +240,24 @@ class TrayIcon:
             current_profile = self.get_current_profile_callback()
             self.current_profile = current_profile
 
-        
         try:
             # Create the menu
             menu = self.create_menu()
-            
+
             self.icon = pystray.Icon(
                 "whisper-to-me",
                 self.create_image(),
                 f"Whisper-to-Me (Profile: {current_profile})",
                 menu=menu,
             )
-            
+
             # Run the icon
             self.icon.run()
-            
+
         except Exception as e:
             print(f"❌ Error creating/running tray icon: {e}")
             import traceback
+
             traceback.print_exc()
 
     def start(self):
