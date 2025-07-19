@@ -10,43 +10,8 @@ on:
 
 jobs:
   build:
-    name: Build distribution
-    runs-on: ubuntu-latest
+    uses: ./.github/workflows/reusable-build.yml
     
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-      with:
-        enable-cache: true
-        cache-dependency-glob: "uv.lock"
-    
-    - name: Set up Python
-      run: uv python install
-    
-    - name: Install dependencies
-      run: uv sync --all-extras --dev
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y portaudio19-dev libsndfile1-dev
-    
-    - name: Run tests
-      run: |
-        uv run ruff check
-        uv run pytest -v
-    
-    - name: Build package
-      run: uv build
-    
-    - name: Store the distribution packages
-      uses: actions/upload-artifact@v4
-      with:
-        name: python-package-distributions
-        path: dist/
-
   publish-to-testpypi:
     name: Publish to TestPyPI
     needs:

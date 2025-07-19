@@ -10,46 +10,9 @@ on:
 jobs:
   test:
     name: Test Python ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
     strategy:
       matrix:
         python-version: ["3.12"]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v6
-      with:
-        enable-cache: true
-        cache-dependency-glob: "uv.lock"
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y portaudio19-dev libsndfile1-dev libgirepository-2.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 gir1.2-gtk-4.0 xvfb gir1.2-appindicator3-0.1 gir1.2-ayatanaappindicator3-0.1
-        
-    - name: Install dependencies
-      run: |
-        uv sync --all-extras --dev
-    
-    - name: Run linting
-      run: |
-        uv run ruff check
-        uv run ruff format --check
-    
-    - name: Run tests
-      run: |
-        export DISPLAY=:99
-        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
-        sleep 3
-        uv run pytest -v
-    
-    - name: Check package build
-      run: |
-        uv build
-        # Verify wheel contents
-        unzip -l dist/*.whl | grep -E "(whisper_to_me\.py|tray_icon\.py|single_instance\.py)"
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      python-version: ${{ matrix.python-version }}

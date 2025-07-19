@@ -1,0 +1,64 @@
+name: Reusable Build and Test
+
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        description: 'Python version to use'
+        required: false
+        default: '3.12'
+        type: string
+    outputs:
+      artifact-name:
+        description: 'Name of the build artifact'
+        value: python-package-distributions
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+    
+    - name: Set up Python ${{ inputs.python-version }}
+      run: uv python install ${{ inputs.python-version }}
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y portaudio19-dev libsndfile1-dev libgirepository-2.0-dev gcc libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 gir1.2-gtk-4.0 xvfb gir1.2-appindicator3-0.1 gir1.2-ayatanaappindicator3-0.1
+        
+    - name: Install dependencies
+      run: |
+        uv sync --all-extras --dev
+    
+    - name: Run linting
+      run: |
+        uv run ruff check
+        uv run ruff format --check
+    
+    - name: Run tests
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+        sleep 3
+        uv run pytest -v
+    
+    - name: Build package
+      run: |
+        uv build
+        # Verify wheel contents
+        unzip -l dist/*.whl | grep -E "(whisper_to_me\.py|tray_icon\.py|single_instance\.py)"
+    
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
