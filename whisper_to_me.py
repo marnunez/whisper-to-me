@@ -30,6 +30,7 @@ from audio_recorder import AudioRecorder
 from speech_processor import SpeechProcessor
 from keystroke_handler import KeystrokeHandler
 from tray_icon import TrayIcon
+from single_instance import SingleInstance
 from pynput import keyboard
 
 
@@ -79,7 +80,7 @@ class WhisperToMe:
             model_size=model_size, device=device, language=language
         )
         self.keystroke_handler = KeystrokeHandler()
-        
+
         # Initialize tray icon if enabled
         if self.use_tray:
             self.tray_icon = TrayIcon(on_quit=self.shutdown)
@@ -100,7 +101,7 @@ class WhisperToMe:
             self.is_recording = True
             self.audio_recorder.start_recording()
             print("🎤 Recording...")
-            
+
             # Update tray icon
             if self.tray_icon:
                 self.tray_icon.update_icon(recording=True)
@@ -114,7 +115,7 @@ class WhisperToMe:
         """
         if key == self.trigger_key and self.is_recording:
             self.is_recording = False
-            
+
             # Update tray icon
             if self.tray_icon:
                 self.tray_icon.update_icon(recording=False)
@@ -168,7 +169,7 @@ class WhisperToMe:
             print("\nShutting down...")
         finally:
             self.shutdown()
-            
+
     def shutdown(self):
         """Clean shutdown of the application."""
         if self.tray_icon:
@@ -272,18 +273,20 @@ Examples:
     # Process language parameter
     language = None if args.language.lower() == "auto" else args.language
 
-    # Initialize and run application
-    app = WhisperToMe(
-        trigger_key=trigger_key,
-        model_size=args.model,
-        device=args.device,
-        audio_device=args.audio_device,
-        debug=args.debug,
-        language=language,
-        use_tray=not args.no_tray,
-    )
+    # Ensure single instance
+    with SingleInstance():
+        # Initialize and run application
+        app = WhisperToMe(
+            trigger_key=trigger_key,
+            model_size=args.model,
+            device=args.device,
+            audio_device=args.audio_device,
+            debug=args.debug,
+            language=language,
+            use_tray=not args.no_tray,
+        )
 
-    app.run()
+        app.run()
 
 
 if __name__ == "__main__":

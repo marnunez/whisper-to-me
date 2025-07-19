@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: "uv.lock"
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      run: uv python install ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        uv sync --all-extras --dev
+        
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y portaudio19-dev libsndfile1-dev
+    
+    - name: Run linting
+      run: |
+        uv run ruff check
+        uv run ruff format --check
+    
+    - name: Run tests
+      run: |
+        uv run pytest -v
+    
+    - name: Check package build
+      run: |
+        uv build
+        # Verify wheel contents
+        unzip -l dist/*.whl | grep -E "(whisper_to_me\.py|tray_icon\.py|single_instance\.py)"
