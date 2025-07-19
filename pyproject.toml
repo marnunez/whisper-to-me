@@ -1,14 +1,48 @@
 [project]
 name = "whisper-to-me"
 version = "0.1.0"
-description = "Add your description here"
+description = "Real-time voice transcription tool that converts speech to text and types it directly into any application"
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [
+    {name = "marnunez"},
+]
+license = {text = "MIT"}
+keywords = ["speech-to-text", "transcription", "whisper", "voice-to-text", "accessibility"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
 dependencies = [
     "faster-whisper>=1.1.1",
     "numpy>=2.3.1",
+    "pillow>=11.3.0",
     "pynput>=1.8.1",
+    "pystray>=0.19.5",
     "pyyaml>=6.0.2",
     "sounddevice>=0.5.2",
     "soundfile>=0.13.1",
 ]
+
+[project.scripts]
+whisper-to-me = "whisper_to_me:main"
+
+[project.urls]
+Homepage = "https://github.com/marnunez/whisper-to-me"
+Repository = "https://github.com/marnunez/whisper-to-me"
+Issues = "https://github.com/marnunez/whisper-to-me/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.12.4",
+]
+
