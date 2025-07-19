@@ -7,211 +7,226 @@ keystrokes.
 ## Features
 
 - **Push-to-talk recording** with configurable hotkeys
-- **Local speech recognition** using FasterWhisper (no internet required)
+- **Local speech recognition** (no internet required)
 - **Global hotkey support** across all applications
-- **Multiple audio device support** for various microphones
-- **High accuracy** with beam search and optimized parameters
-- **Debug mode** for troubleshooting audio issues
-- **Cross-platform** support (Linux, macOS, Windows)
+- **Multiple language support** with auto-detection
+- **Multiple audio device support**
+- **System tray integration** with visual recording indicator
+- **Single instance protection** - prevents multiple instances
+- **Debug mode** for troubleshooting
+- **High-accuracy transcription** using FasterWhisper
+- **Real-time performance** optimized for responsiveness
+
+## Requirements
+
+- Python 3.12+
+- CUDA-capable GPU (optional, CPU mode available)
+- Audio input device (microphone)
+- Linux operating system
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.8+
-- CUDA-capable GPU (optional, for faster processing)
-- Microphone
-
-### Setup
-
-1. Clone or download this repository
-2. Install dependencies using uv:
+### From PyPI (Recommended)
 
 ```bash
-cd whisper-to-me
-uv sync
+# Install using pip
+pip install whisper-to-me
+
+# Or using uv (faster)
+uv tool install whisper-to-me
 ```
 
-### Dependencies
+### From Source
 
-- `faster-whisper` - Speech recognition engine
-- `sounddevice` - Audio recording
-- `numpy` - Audio processing
-- `pynput` - Keyboard simulation and hotkey detection
-- `soundfile` - Audio file I/O
+1. Install system dependencies:
+
+```bash
+# Ubuntu/Debian
+sudo apt install portaudio19-dev libsndfile1-dev
+
+# Fedora
+sudo dnf install portaudio-devel libsndfile-devel
+
+# Arch Linux
+sudo pacman -S portaudio libsndfile
+```
+
+1. Clone and install:
+
+```bash
+git clone https://github.com/marnunez/whisper-to-me.git
+cd whisper-to-me
+uv tool install .
+```
 
 ## Usage
 
 ### Basic Usage
 
+Simply run the command after installation:
+
 ```bash
-uv run python whisper_to_me.py
+whisper-to-me
 ```
 
-This starts the application with default settings:
+The application will:
 
-- **Trigger key**: Scroll Lock
-- **Model**: large-v3 (best accuracy)
-- **Device**: CUDA (if available)
+1. Load the Whisper model (first run may take a moment)
+2. Show a system tray icon (microphone)
+3. Listen for the trigger key (Scroll Lock by default)
+4. Press and hold the trigger key to record
+5. Release to transcribe and type the text
 
 ### Command Line Options
 
 ```bash
-# Use a different trigger key
-uv run python whisper_to_me.py --key caps_lock
+whisper-to-me [options]
 
-# Use a smaller/faster model
-uv run python whisper_to_me.py --model base --device cpu
-
-# List available audio devices
-uv run python whisper_to_me.py --list-devices
-
-# Use specific audio device
-uv run python whisper_to_me.py --audio-device 2
-
-# Enable debug mode (saves audio files)
-uv run python whisper_to_me.py --debug
-
-# Get help
-uv run python whisper_to_me.py --help
+Options:
+  --model MODEL         Whisper model size (tiny, base, small, medium, large-v3)
+  --device DEVICE       Processing device (cpu, cuda)
+  --key KEY            Trigger key (scroll_lock, pause, ctrl, alt, caps, etc.)
+  --language LANG      Target language (auto, en, es, fr, etc.)
+  --list-devices       List available audio input devices
+  --audio-device ID    Audio device ID to use
+  --debug             Save recorded audio files for debugging
+  --no-tray           Disable system tray icon
+  --help              Show help message
 ```
 
-### Available Trigger Keys
+### Examples
 
-- `scroll_lock` (default) - Scroll Lock key
-- `caps_lock` - Caps Lock key
-- `pause` - Pause/Break key
-- `ctrl` - Left Ctrl key
-- `alt` - Left Alt key
-- `shift` - Left Shift key
-- `tab` - Tab key
-- Any F-key: `f1`, `f2`, ..., `f20`
+```bash
+# Use default settings (large-v3 model, CUDA, scroll lock key, auto language)
+whisper-to-me
 
-### Model Sizes
+# Use smaller model on CPU with caps lock trigger
+whisper-to-me --model base --device cpu --key caps_lock
 
-| Model | Size | Speed | Accuracy | Memory |
-|-------|------|-------|----------|---------|
-| `tiny` | 39 MB | Fastest | Lowest | ~1 GB |
-| `base` | 74 MB | Fast | Good | ~1 GB |
-| `small` | 244 MB | Medium | Better | ~2 GB |
-| `medium` | 769 MB | Slow | High | ~5 GB |
-| `large-v3` | 1550 MB | Slowest | Highest | ~10 GB |
+# Spanish transcription with debug mode
+whisper-to-me --language es --debug --audio-device 2
+
+# Run without system tray (terminal only)
+whisper-to-me --no-tray
+
+# List available audio devices
+whisper-to-me --list-devices
+```
+
+### System Tray
+
+The system tray icon shows:
+
+- **Gray microphone**: Ready to record
+- **Red microphone**: Currently recording
+- **Right-click menu**: View status and quit
 
 ## How It Works
 
-1. **Hold trigger key** - Start recording audio
-2. **Speak** - Your voice is captured in real-time
-3. **Release trigger key** - Recording stops and transcription begins
-4. **Text appears** - Transcribed text is typed where your cursor is
+1. **Single Instance Protection**: Ensures only one instance runs at a time
+2. **Global Hotkey Detection**: Monitors for configured trigger key across all applications
+3. **Audio Recording**: Captures microphone input while key is held
+4. **Speech Processing**: Uses FasterWhisper for local speech-to-text
+   conversion
+5. **Keystroke Simulation**: Types the transcribed text directly into the
+   active application
+6. **System Integration**: Shows status in system tray with visual feedback
 
-## Configuration
+## Performance Notes
 
-### Audio Settings
-
-The application automatically optimizes for speech recognition:
-
-- Sample rate: 16kHz (optimal for Whisper)
-- Mono audio recording
-- Low-latency audio streaming
-- Voice Activity Detection (VAD) enabled
-
-### Transcription Settings
-
-Optimized for accuracy:
-
-- Beam size: 5 (explores multiple possibilities)
-- Best of: 5 (generates multiple candidates)
-- Temperature: 0.0 (deterministic output)
-- Language: Auto-detected or configurable
+- **First Run**: May take longer as the Whisper model downloads (~1-3GB)
+- **GPU Acceleration**: CUDA significantly improves transcription speed
+- **Model Sizes**:
+  - `tiny`: Fastest, least accurate (~39MB)
+  - `base`: Good balance (~74MB)
+  - `small`: Better accuracy (~244MB)
+  - `medium`: High accuracy (~769MB)
+  - `large-v3`: Best accuracy (~1550MB, default)
+- **Audio Quality**: Better microphone input improves transcription accuracy
 
 ## Troubleshooting
 
-### No Speech Detected
+### Common Issues
 
-1. Check microphone is not muted
-2. Test with `--debug` flag to save audio files
-3. Try speaking louder or closer to microphone
-4. List audio devices with `--list-devices`
-5. Select specific device with `--audio-device N`
+1. **"Already running" error**: Only one instance allowed - check system
+   tray or use `pkill whisper-to-me`
+2. **Permission errors**: May need permissions for global key capture and
+   microphone access
+3. **Audio issues**: Check microphone permissions with `--list-devices`
+4. **CUDA errors**: Install CUDA drivers or use `--device cpu`
+5. **Trigger key not working**: Try different keys like `--key caps_lock`
 
-### Poor Accuracy
+### Debug Mode
 
-1. Use larger model: `--model large-v3`
-2. Ensure quiet environment
-3. Use close-talking microphone
-4. Speak clearly with pauses between words
+Use `--debug` to save recorded audio files for troubleshooting:
 
-### Performance Issues
-
-1. Use smaller model: `--model base`
-2. Use CPU instead of GPU: `--device cpu`
-3. Close other applications using GPU/CPU
-
-### Permission Issues
-
-The application requires:
-
-- **Microphone access** - for audio recording
-- **Accessibility permissions** - for global hotkey detection and keystroke
-  simulation
-
-On macOS, you may need to grant accessibility permissions in System
-Preferences > Security & Privacy > Privacy > Accessibility.
-
-## File Structure
-
-```text
-whisper-to-me/
-├── whisper_to_me.py          # Main application
-├── src/
-│   ├── audio_recorder.py     # Audio recording with low latency
-│   ├── speech_processor.py   # FasterWhisper integration
-│   └── keystroke_handler.py  # Keyboard simulation
-├── pyproject.toml            # Dependencies
-└── README.md                 # This file
+```bash
+whisper-to-me --debug
 ```
 
-## Privacy
+### System Requirements Check
 
-- All processing is done **locally** on your machine
-- No audio data is sent to external servers
-- Audio is only stored temporarily in memory during processing
-- Debug mode saves audio files locally for troubleshooting
+```bash
+# Check audio devices
+whisper-to-me --list-devices
 
-## Platform Notes
+# Test with smaller model
+whisper-to-me --model tiny --device cpu
+```
 
-### Linux
+## Uninstallation
 
-- Requires X11 for global hotkeys (Wayland not fully supported)
-- May need PulseAudio or ALSA for audio
+```bash
+# If installed with pip
+pip uninstall whisper-to-me
 
-### macOS
+# If installed with uv tool
+uv tool uninstall whisper-to-me
+```
 
-- Requires accessibility permissions for global hotkeys
-- May need microphone permissions
+## Development
 
-### Windows
+### Setup Development Environment
 
-- Should work out of the box
-- May require running as administrator for global hotkeys
+```bash
+git clone https://github.com/marnunez/whisper-to-me.git
+cd whisper-to-me
+uv sync --all-extras --dev
+```
 
-## License
+### Run Tests
 
-This project uses the following open-source libraries:
+```bash
+uv run pytest
+```
 
-- FasterWhisper (MIT License)
-- pynput (LGPL License)
-- sounddevice (MIT License)
+### Code Quality
+
+```bash
+uv run ruff check
+uv run ruff format
+```
 
 ## Contributing
 
-Feel free to submit issues and enhancement requests!
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Add tests if applicable
+5. Ensure code quality (`uv run ruff check && uv run pytest`)
+6. Commit your changes (`git commit -m 'Add amazing feature'`)
+7. Push to the branch (`git push origin feature/amazing-feature`)
+8. Open a Pull Request
 
-## Credits
+## License
 
-Built with:
+This project is licensed under the MIT License - see the
+[LICENSE](LICENSE) file for details.
 
-- [FasterWhisper](https://github.com/guillaumekln/faster-whisper) - Fast
-  Whisper implementation
-- [pynput](https://github.com/moses-palmer/pynput) - Keyboard and mouse control
-- [sounddevice](https://github.com/spatialaudio/python-sounddevice) - Audio I/O
+## Acknowledgments
+
+- [FasterWhisper](https://github.com/guillaumekln/faster-whisper) for fast
+  speech recognition
+- [OpenAI Whisper](https://github.com/openai/whisper) for the underlying model
+- [PyNput](https://github.com/moses-palmer/pynput) for cross-platform input
+  control
