@@ -31,6 +31,7 @@ from speech_processor import SpeechProcessor
 from keystroke_handler import KeystrokeHandler
 from tray_icon import TrayIcon
 from single_instance import SingleInstance
+from config import ConfigManager, AppConfig
 from pynput import keyboard
 
 
@@ -44,61 +45,120 @@ class WhisperToMe:
 
     def __init__(
         self,
-        trigger_key=keyboard.Key.scroll_lock,
-        model_size="large-v3",
-        device="cuda",
-        audio_device=None,
-        debug=False,
-        language=None,
-        use_tray=True,
-        tap_mode=False,
-        discard_key=keyboard.Key.esc,
+        config: AppConfig,
+        config_manager: ConfigManager,
     ):
         """
         Initialize the Whisper-to-Me application.
 
         Args:
-            trigger_key: Keyboard key to trigger recording (default: scroll_lock)
-            model_size: Whisper model size (tiny, base, small, medium, large-v3)
-            device: Processing device (cpu, cuda)
-            audio_device: Audio input device ID (None for default)
-            debug: Enable debug mode to save audio files
-            language: Target language (None for auto-detection, 'en', 'es', 'fr', etc.)
-            use_tray: Enable system tray icon
-            tap_mode: Use tap-to-start/tap-to-stop instead of push-to-talk
-            discard_key: Key to discard recording without transcription
+            config: Application configuration object
+            config_manager: Configuration manager for profile switching
         """
-        self.trigger_key = trigger_key
+        self.config = config
+        self.config_manager = config_manager
         self.is_recording = False
-        self.debug = debug
         self.recording_counter = 0
-        self.use_tray = use_tray
         self.tray_icon = None
-        self.tap_mode = tap_mode
-        self.discard_key = discard_key
+
+        # Extract current settings from config
+        self._update_from_config()
 
         # Initialize components
         print("Initializing Whisper-to-Me...")
-        print(f"Loading {model_size} model on {device}...")
+        print(
+            f"Loading {self.config.general.model} model on {self.config.general.device}..."
+        )
+        print(f"Using profile: {self.config_manager.get_current_profile()}")
 
-        self.audio_recorder = AudioRecorder(device_id=audio_device)
+        self.audio_recorder = AudioRecorder(
+            device_id=self.config.recording.audio_device
+        )
         self.speech_processor = SpeechProcessor(
-            model_size=model_size, device=device, language=language
+            model_size=self.config.general.model,
+            device=self.config.general.device,
+            language=self.config.general.language
+            if self.config.general.language != "auto"
+            else None,
         )
         self.keystroke_handler = KeystrokeHandler()
 
         # Initialize tray icon if enabled
-        if self.use_tray:
-            self.tray_icon = TrayIcon(on_quit=self.shutdown)
+        if self.config.ui.use_tray:
+            self.tray_icon = TrayIcon(
+                on_quit=self.shutdown,
+                on_profile_change=self.switch_profile,
+                get_profiles=self.config_manager.get_profile_names,
+                get_current_profile=self.config_manager.get_current_profile,
+            )
             self.tray_icon.start()
 
-        if self.tap_mode:
+        if self.config.recording.mode == "tap-mode":
             print(f"✓ Ready! Tap {self.trigger_key} to start/stop recording")
             print(f"  Press {self.discard_key} while recording to discard")
         else:
             print(f"✓ Ready! Press and hold {self.trigger_key} to record")
         print("Press Ctrl+C in terminal to exit")
         print("Note: This captures keys globally across all applications")
+
+    def _update_from_config(self):
+        """Update instance variables from current configuration."""
+        self.trigger_key = self.config_manager.parse_key_string(
+            self.config.recording.trigger_key
+        )
+        self.discard_key = self.config_manager.parse_key_string(
+            self.config.recording.discard_key
+        )
+        self.debug = self.config.general.debug
+        self.tap_mode = self.config.recording.mode == "tap-mode"
+
+    def switch_profile(self, profile_name: str):
+        """Switch to a different profile and update configuration."""
+        print(f"🔄 Switching to profile: {profile_name}")
+
+        # Apply the new profile
+        new_config = self.config_manager.apply_profile(profile_name)
+
+        # Update current config
+        old_language = self.config.general.language
+        old_model = self.config.general.model
+        old_device = self.config.general.device
+
+        self.config = new_config
+        self._update_from_config()
+
+        # Update speech processor if language/model/device changed
+        if (
+            old_language != new_config.general.language
+            or old_model != new_config.general.model
+            or old_device != new_config.general.device
+        ):
+            if old_language != new_config.general.language:
+                print(
+                    f"🌐 Language changed: {old_language} → {new_config.general.language}"
+                )
+
+            if (
+                old_model != new_config.general.model
+                or old_device != new_config.general.device
+            ):
+                print(
+                    f"🔄 Model/device changed: {old_model}@{old_device} → {new_config.general.model}@{new_config.general.device}"
+                )
+
+            # Reinitialize speech processor with new settings
+            self.speech_processor = SpeechProcessor(
+                model_size=new_config.general.model,
+                device=new_config.general.device,
+                language=new_config.general.language
+                if new_config.general.language != "auto"
+                else None,
+            )
+
+        # Save the profile switch
+        self.config_manager.save_config()
+
+        print("✓ Profile switch completed")
 
     def on_key_press(self, key):
         """
@@ -155,7 +215,6 @@ class WhisperToMe:
         audio_data = self.audio_recorder.stop_recording()
 
         if audio_data is not None and len(audio_data) > 0:
-
             # Save audio for debugging if enabled
             if self.debug:
                 import soundfile as sf
@@ -244,6 +303,10 @@ Examples:
   %(prog)s --tap-mode                   # Use tap-to-start/tap-to-stop mode
   %(prog)s --tap-mode --discard-key del # Tap mode with delete key to discard
   %(prog)s --list-devices               # Show available audio devices
+  %(prog)s --profile work               # Use work profile
+  %(prog)s --list-profiles              # Show available profiles
+  %(prog)s --model tiny --create-profile quick # Create profile from settings
+  %(prog)s --config-path                # Show config file location
         """,
     )
 
@@ -291,10 +354,45 @@ Examples:
         default="esc",
         help="Key to discard recording in tap mode (default: esc)",
     )
+    parser.add_argument(
+        "--profile",
+        help="Use specific profile",
+    )
+    parser.add_argument(
+        "--list-profiles",
+        action="store_true",
+        help="List available profiles and exit",
+    )
+    parser.add_argument(
+        "--create-profile",
+        help="Create new profile from current CLI arguments",
+    )
+    parser.add_argument(
+        "--config-path",
+        action="store_true",
+        help="Show configuration file path and exit",
+    )
 
     args = parser.parse_args()
 
-    # List devices if requested
+    # Initialize config manager
+    config_manager = ConfigManager()
+
+    # Handle configuration-only commands
+    if args.config_path:
+        print(f"Configuration file: {config_manager.get_config_file_path()}")
+        return
+
+    if args.list_profiles:
+        print("Available profiles:")
+        profiles = config_manager.get_profile_names()
+        current = config_manager.get_current_profile()
+        for profile in profiles:
+            marker = "●" if profile == current else "○"
+            print(f"  {marker} {profile}")
+        return
+
+    # List audio devices if requested
     if args.list_devices:
         print("Available audio input devices:")
         devices = AudioRecorder.list_input_devices()
@@ -310,56 +408,60 @@ Examples:
             )
         return
 
-    # Parse and validate trigger key
-    key_map = {
-        "ctrl": keyboard.Key.ctrl_l,
-        "alt": keyboard.Key.alt_l,
-        "shift": keyboard.Key.shift_l,
-        "caps": keyboard.Key.caps_lock,
-        "caps_lock": keyboard.Key.caps_lock,
-        "tab": keyboard.Key.tab,
-        "scroll_lock": keyboard.Key.scroll_lock,
-        "pause": keyboard.Key.pause,
-        "esc": keyboard.Key.esc,
-        "escape": keyboard.Key.esc,
-        "del": keyboard.Key.delete,
-        "delete": keyboard.Key.delete,
-        "backspace": keyboard.Key.backspace,
-    }
+    # Load base configuration
+    config = config_manager.load_config()
 
-    trigger_key = key_map.get(args.key.lower())
-    if trigger_key is None and hasattr(keyboard.Key, args.key.lower()):
-        trigger_key = getattr(keyboard.Key, args.key.lower())
-    elif trigger_key is None:
-        trigger_key = keyboard.Key.scroll_lock
-        print(f"Warning: Unknown key '{args.key}', using scroll_lock instead")
+    # Apply profile if specified
+    profile_to_use = args.profile or config.general.last_profile
+    if profile_to_use and profile_to_use != "default":
+        config = config_manager.apply_profile(profile_to_use)
 
-    # Parse and validate discard key
-    discard_key = key_map.get(args.discard_key.lower())
-    if discard_key is None and hasattr(keyboard.Key, args.discard_key.lower()):
-        discard_key = getattr(keyboard.Key, args.discard_key.lower())
-    elif discard_key is None:
-        discard_key = keyboard.Key.esc
-        print(f"Warning: Unknown discard key '{args.discard_key}', using esc instead")
+    # Override config with CLI arguments
+    def override_if_provided(config_value, cli_value):
+        """Return CLI value if provided, otherwise config value."""
+        return cli_value if cli_value is not None else config_value
 
-    # Process language parameter
-    language = None if args.language.lower() == "auto" else args.language
+    # Override general settings
+    config.general.model = override_if_provided(config.general.model, args.model)
+    config.general.device = override_if_provided(config.general.device, args.device)
+    config.general.debug = override_if_provided(config.general.debug, args.debug)
 
-    # Ensure single instance
+    # Handle language override
+    if args.language and args.language != "auto":
+        config.general.language = args.language
+    elif args.language == "auto":
+        config.general.language = "auto"
+
+    # Override recording settings
+    config.recording.trigger_key = override_if_provided(
+        config.recording.trigger_key, args.key
+    )
+    config.recording.discard_key = override_if_provided(
+        config.recording.discard_key, args.discard_key
+    )
+    config.recording.audio_device = override_if_provided(
+        config.recording.audio_device, args.audio_device
+    )
+
+    if args.tap_mode:
+        config.recording.mode = "tap-mode"
+
+    # Override UI settings
+    if args.no_tray:
+        config.ui.use_tray = False
+
+    # Handle profile creation
+    if args.create_profile:
+        success = config_manager.create_profile(args.create_profile, config)
+        if success:
+            print(f"✓ Profile '{args.create_profile}' created successfully")
+        else:
+            print(f"✗ Failed to create profile '{args.create_profile}'")
+        return
+
+    # Ensure single instance and run application
     with SingleInstance():
-        # Initialize and run application
-        app = WhisperToMe(
-            trigger_key=trigger_key,
-            model_size=args.model,
-            device=args.device,
-            audio_device=args.audio_device,
-            debug=args.debug,
-            language=language,
-            use_tray=not args.no_tray,
-            tap_mode=args.tap_mode,
-            discard_key=discard_key,
-        )
-
+        app = WhisperToMe(config, config_manager)
         app.run()
 
 

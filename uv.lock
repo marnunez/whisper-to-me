@@ -436,6 +436,20 @@ wheels = [
 ]
 
 [[package]]
+name = "pycairo"
+version = "1.28.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/40/d9/412da520de9052b7e80bfc810ec10f5cb3dbfa4aa3e23c2820dc61cdb3d0/pycairo-1.28.0.tar.gz", hash = "sha256:26ec5c6126781eb167089a123919f87baa2740da2cca9098be8b3a6b91cc5fbc", size = 662477, upload-time = "2025-04-14T20:11:08.218Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a9/d7/206d7945aac5c6c889e7fea4011410d1311455a1d8dfce66106d8d700b7f/pycairo-1.28.0-cp312-cp312-win32.whl", hash = "sha256:c00cfbb7f30eb7ca1d48886712932e2d91e8835a8496f4e423878296ceba573e", size = 750594, upload-time = "2025-04-14T20:10:53.72Z" },
+    { url = "https://files.pythonhosted.org/packages/2e/ba/259fc9a4d3afdad1e5b9db52b9d8a5df67f70dd787167185e8ec8a1af007/pycairo-1.28.0-cp312-cp312-win_amd64.whl", hash = "sha256:d50d190f5033992b55050b9f337ee42a45c3568445d5e5d7987bab96c278d8a6", size = 841767, upload-time = "2025-04-14T20:10:56.711Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/08/aa0903612ea0e8686ad6af58d4fb9cbab8ee0b0831201cddf7abd578d045/pycairo-1.28.0-cp312-cp312-win_arm64.whl", hash = "sha256:957e0340ee1c279d197d4f7cfa96f6d8b48e453eec711fca999748d752468ff4", size = 691687, upload-time = "2025-04-16T19:30:23.729Z" },
+    { url = "https://files.pythonhosted.org/packages/59/a7/c3e5ed55781dfe1b31eb4a2482aeae707671f3d36b0ea53a1722f4a3dfe9/pycairo-1.28.0-cp313-cp313-win32.whl", hash = "sha256:d13352429d8a08a1cb3607767d23d2fb32e4c4f9faa642155383980ec1478c24", size = 750594, upload-time = "2025-04-14T20:10:59.284Z" },
+    { url = "https://files.pythonhosted.org/packages/8b/1c/ebadd290748aff3b6bc35431114d41e7a42f40a4b988c2aaf2dfed5d8156/pycairo-1.28.0-cp313-cp313-win_amd64.whl", hash = "sha256:082aef6b3a9dcc328fa648d38ed6b0a31c863e903ead57dd184b2e5f86790140", size = 841774, upload-time = "2025-04-14T20:11:01.79Z" },
+    { url = "https://files.pythonhosted.org/packages/3e/ce/a3f5f1946613cd8a4654322b878c59f273c6e9b01dfadadd3f609070e0b9/pycairo-1.28.0-cp313-cp313-win_arm64.whl", hash = "sha256:026afd53b75291917a7412d9fe46dcfbaa0c028febd46ff1132d44a53ac2c8b6", size = 691675, upload-time = "2025-04-16T19:30:26.565Z" },
+]
+
+[[package]]
 name = "pycparser"
 version = "2.22"
 source = { registry = "https://pypi.org/simple" }
@@ -452,6 +466,15 @@ sdist = { url = "https://files.pythonhosted.org/packages/b0/77/a5b8c569bf593b014
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl", hash = "sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b", size = 1225217, upload-time = "2025-06-21T13:39:07.939Z" },
 ]
+
+[[package]]
+name = "pygobject"
+version = "3.52.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pycairo" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4a/36/fec530a313d3d48f12e112ac0a65ee3ccc87f385123a0493715609e8e99c/pygobject-3.52.3.tar.gz", hash = "sha256:00e427d291e957462a8fad659a9f9c8be776ff82a8b76bdf402f1eaeec086d82", size = 1235825, upload-time = "2025-03-16T18:22:57.1Z" }
 
 [[package]]
 name = "pynput"
@@ -550,6 +573,23 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/b8/8a/1d15e42496bef31246f7401aad1ebf0f9e11566ce0de41c18431715aafbc/pyobjc_framework_quartz-11.1-cp313-cp313t-macosx_10_13_universal2.whl", hash = "sha256:b23d81c30c564adf6336e00b357f355b35aad10075dd7e837cfd52a9912863e5", size = 221941, upload-time = "2025-06-14T20:53:38.34Z" },
     { url = "https://files.pythonhosted.org/packages/32/a8/a3f84d06e567efc12c104799c7fd015f9bea272a75f799eda8b79e8163c6/pyobjc_framework_quartz-11.1-cp314-cp314-macosx_11_0_universal2.whl", hash = "sha256:07cbda78b4a8fcf3a2d96e047a2ff01f44e3e1820f46f0f4b3b6d77ff6ece07c", size = 221312, upload-time = "2025-06-14T20:53:39.435Z" },
     { url = "https://files.pythonhosted.org/packages/76/ef/8c08d4f255bb3efe8806609d1f0b1ddd29684ab0f9ffb5e26d3ad7957b29/pyobjc_framework_quartz-11.1-cp314-cp314t-macosx_11_0_universal2.whl", hash = "sha256:39d02a3df4b5e3eee1e0da0fb150259476910d2a9aa638ab94153c24317a9561", size = 226353, upload-time = "2025-06-14T20:53:40.655Z" },
+]
+
+[[package]]
+name = "pyobject"
+version = "1.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9f/18/f2dd7ca5d2466eb4cc84a6c1107d80c9b05f86805e0a10dc3775d75a5440/pyobject-1.3.2.tar.gz", hash = "sha256:ab4208fa69af5f5c34db750c2a7742963e5c2930be7be428fd7485ca9dcdb357", size = 63607, upload-time = "2025-06-23T08:20:12.559Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/2d/94e6ece9304c28d716209ae757e3af843ceefab29bd73007aae8168ee176/pyobject-1.3.2-cp312-cp312-win32.whl", hash = "sha256:95890d1a753260be3c7dfd89b4375391aaa7498b9d7eb49876fca2b0054252f9", size = 65386, upload-time = "2025-06-23T08:21:05.659Z" },
+    { url = "https://files.pythonhosted.org/packages/68/93/aa655d0bbaf393f3dcfd5ca9bb6dbc0cd42c8d0a22df2bbe3b00fe79d75d/pyobject-1.3.2-cp312-cp312-win_amd64.whl", hash = "sha256:7becde12befee81a6e23d1af54a14d1355ce4e11e758d2048035c4185552a589", size = 66026, upload-time = "2025-06-23T08:20:49.823Z" },
+    { url = "https://files.pythonhosted.org/packages/bf/05/3ad120544032267dca9a59a67a3a5c41feafae70084d82bab311d1967c88/pyobject-1.3.2-cp313-cp313-win32.whl", hash = "sha256:016c72e7748ffa55d46e95cbea5ed24d69a2a0986ef09e57ea0424d626510e0f", size = 65501, upload-time = "2025-06-23T08:21:06.611Z" },
+    { url = "https://files.pythonhosted.org/packages/0b/e3/3236a8ba26b561cf617cca8be7d7cc5033c27723aac839ce142d52a7a462/pyobject-1.3.2-cp313-cp313-win_amd64.whl", hash = "sha256:e0e863bcfb2a4be09d45868931f65f8381003b07ecf33309d056f50851984f19", size = 66055, upload-time = "2025-06-23T08:20:48.402Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/e1/4289fbfc7d7009e8a61a12cb47da372831c6e09e67506ebba2cf0ae8f59b/pyobject-1.3.2-cp313-cp313t-win32.whl", hash = "sha256:b5be51f8bdf43c3dce85758bced8aa98ac28125dbb2a4d6dd72f0cc6f545c276", size = 65507, upload-time = "2025-06-23T08:21:04.693Z" },
+    { url = "https://files.pythonhosted.org/packages/90/e2/b89ec59baba7031615bf5ad026ac34eccdde7df7a3edf4006c6ff564dad3/pyobject-1.3.2-cp313-cp313t-win_amd64.whl", hash = "sha256:0993b06b10635dbab7fbe151f1010bd085dcf1ec3b0b000a2affe83725fc0ca1", size = 66060, upload-time = "2025-06-23T08:20:47.151Z" },
+    { url = "https://files.pythonhosted.org/packages/08/50/1b2a2608567f9cbcaca6897ef67d739a753a6b3bc327ba895d6ed31930a6/pyobject-1.3.2-cp314-cp314-win32.whl", hash = "sha256:f04b5f71212d044f46e39ee278b065847aaea1f2300afde6112bab0544250f8b", size = 65502, upload-time = "2025-06-23T08:21:03.796Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/27/199ff43a883fd3e2a33a65f07f464ee2dea572c89be00accfeb5d129098a/pyobject-1.3.2-cp314-cp314-win_amd64.whl", hash = "sha256:f7e2364b8369a8a4cff0391368e872a91ba38e2653d2d185da5840cb7bcc7bfe", size = 66996, upload-time = "2025-06-23T08:21:15.926Z" },
+    { url = "https://files.pythonhosted.org/packages/9a/f3/a1ed97fd09dea8521c171d17fac8bce7d8ebc38cd80fbaaa034cb97feaae/pyobject-1.3.2-cp314-cp314t-win_amd64.whl", hash = "sha256:d8a2d649814c6385e1f54b335df484e1b799c3803247f4230b682619abab1e39", size = 67650, upload-time = "2025-06-23T08:21:14.227Z" },
 ]
 
 [[package]]
@@ -759,6 +799,15 @@ wheels = [
 ]
 
 [[package]]
+name = "tomli-w"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/19/75/241269d1da26b624c0d5e110e8149093c759b7a286138f4efd61a60e75fe/tomli_w-1.2.0.tar.gz", hash = "sha256:2dd14fac5a47c27be9cd4c976af5a12d87fb1f0b4512f81d69cce3b35ae25021", size = 7184, upload-time = "2025-01-15T12:07:24.262Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c7/18/c86eb8e0202e32dd3df50d43d7ff9854f8e0603945ff398974c1d91ac1ef/tomli_w-1.2.0-py3-none-any.whl", hash = "sha256:188306098d013b691fcadc011abd66727d3c414c571bb01b1a174ba8c983cf90", size = 6675, upload-time = "2025-01-15T12:07:22.074Z" },
+]
+
+[[package]]
 name = "tqdm"
 version = "4.67.1"
 source = { registry = "https://pypi.org/simple" }
@@ -796,11 +845,15 @@ dependencies = [
     { name = "faster-whisper" },
     { name = "numpy" },
     { name = "pillow" },
+    { name = "pycairo" },
+    { name = "pygobject" },
     { name = "pynput" },
+    { name = "pyobject" },
     { name = "pystray" },
     { name = "pyyaml" },
     { name = "sounddevice" },
     { name = "soundfile" },
+    { name = "tomli-w" },
 ]
 
 [package.dev-dependencies]
@@ -814,11 +867,15 @@ requires-dist = [
     { name = "faster-whisper", specifier = ">=1.1.1" },
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "pillow", specifier = ">=11.3.0" },
+    { name = "pycairo", specifier = ">=1.28.0" },
+    { name = "pygobject", specifier = ">=3.52.3" },
     { name = "pynput", specifier = ">=1.8.1" },
+    { name = "pyobject", specifier = ">=1.3.2" },
     { name = "pystray", specifier = ">=0.19.5" },
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "sounddevice", specifier = ">=0.5.2" },
     { name = "soundfile", specifier = ">=0.13.1" },
+    { name = "tomli-w", specifier = ">=1.2.0" },
 ]
 
 [package.metadata.requires-dev]
