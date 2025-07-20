@@ -60,6 +60,7 @@ class WhisperToMe:
         self.is_recording = False
         self.recording_counter = 0
         self.tray_icon = None
+        self.listener = None
 
         # Extract current settings from config
         self._update_from_config()
@@ -267,20 +268,35 @@ class WhisperToMe:
         Sets up keyboard listeners and runs until interrupted with Ctrl+C.
         """
         try:
-            with keyboard.Listener(
+            self.listener = keyboard.Listener(
                 on_press=self.on_key_press, on_release=self.on_key_release
-            ) as listener:
-                listener.join()
+            )
+            self.listener.start()
+            self.listener.join()
         except KeyboardInterrupt:
-            print("\nShutting down...")
+            pass
         finally:
             self.shutdown()
 
     def shutdown(self):
         """Clean shutdown of the application."""
+        # Prevent multiple shutdown calls
+        if hasattr(self, "_shutting_down") and self._shutting_down:
+            return
+        self._shutting_down = True
+
+        print("Shutting down...")
+
+        # Stop the tray icon
         if self.tray_icon:
             self.tray_icon.stop()
+
         print("Goodbye!")
+
+        # Force immediate exit - keyboard listener won't stop cleanly from another thread
+        import os
+
+        os._exit(0)
 
 
 def main():
