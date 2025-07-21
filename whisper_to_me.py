@@ -32,6 +32,7 @@ from keystroke_handler import KeystrokeHandler
 from tray_icon import TrayIcon
 from single_instance import SingleInstance
 from config import ConfigManager, AppConfig
+from typing import Optional
 from pynput import keyboard
 
 
@@ -78,15 +79,17 @@ class WhisperToMe:
         print(f"Using profile: {self.config_manager.get_current_profile()}")
 
         # Initialize audio recorder with fallback for invalid devices
+        device_id = self._resolve_audio_device()
         try:
-            self.audio_recorder = AudioRecorder(
-                device_id=self.config.recording.audio_device
-            )
+            self.audio_recorder = AudioRecorder(device_id=device_id)
         except Exception as e:
-            if self.config.recording.audio_device is not None:
-                print(
-                    f"❌ Audio device {self.config.recording.audio_device} failed to initialize:"
+            if device_id is not None:
+                device_name = (
+                    self.config.recording.audio_device.get("name")
+                    if self.config.recording.audio_device
+                    else f"ID {device_id}"
                 )
+                print(f"❌ Audio device '{device_name}' failed to initialize:")
                 print(f"   Error: {e}")
 
                 # Show available devices to help user
@@ -94,7 +97,9 @@ class WhisperToMe:
                 if available_devices:
                     print("📱 Available audio devices:")
                     for device in available_devices:
-                        print(f"   {device['id']}: {device['name']}")
+                        print(
+                            f"   {device['id']}: {device['name']} ({device['hostapi_name']})"
+                        )
 
                 print("🔄 Falling back to default audio device...")
                 self.config.recording.audio_device = None
@@ -207,14 +212,31 @@ class WhisperToMe:
         """Get list of available audio input devices."""
         return AudioRecorder.list_input_devices()
 
+    def _resolve_audio_device(self) -> Optional[int]:
+        """Resolve audio device config to actual device ID."""
+        if self.config.recording.audio_device is None:
+            return None
+
+        device = AudioRecorder.find_device_by_config(self.config.recording.audio_device)
+        if device:
+            return device["id"]
+        else:
+            # Device not found, reset config
+            print(
+                f"⚠️  Configured audio device '{self.config.recording.audio_device.get('name')}' not found"
+            )
+            self.config.recording.audio_device = None
+            return None
+
     def get_current_device(self):
         """Get current audio device info."""
-        if self.config.recording.audio_device is None:
+        device_id = self._resolve_audio_device()
+        if device_id is None:
             return AudioRecorder.get_default_input_device()
         else:
             devices = AudioRecorder.list_input_devices()
             for device in devices:
-                if device["id"] == self.config.recording.audio_device:
+                if device["id"] == device_id:
                     return device
             return None
 
@@ -239,7 +261,9 @@ class WhisperToMe:
             test_recorder = AudioRecorder(device_id=device_id)
 
             # If successful, update config and replace recorder
-            self.config.recording.audio_device = device_id
+            self.config.recording.audio_device = AudioRecorder.device_to_config(
+                target_device
+            )
             self.audio_recorder = test_recorder
 
             # Save config change
@@ -458,8 +482,10 @@ Examples:
         action="store_true",
         help="List available audio input devices and exit",
     )
+    parser.add_argument("--audio-device-name", help="Audio device name to use")
     parser.add_argument(
-        "--audio-device", type=int, help="Audio device ID to use (see --list-devices)"
+        "--audio-device-hostapi",
+        help="Audio device host API (e.g., 'ALSA', 'PulseAudio')",
     )
     parser.add_argument(
         "--debug", action="store_true", help="Save recorded audio files for debugging"
@@ -595,9 +621,12 @@ Examples:
     config.recording.discard_key = override_if_provided(
         config.recording.discard_key, args.discard_key
     )
-    config.recording.audio_device = override_if_provided(
-        config.recording.audio_device, args.audio_device
-    )
+    # Handle audio device override (convert from name/hostapi to config if specified)
+    if args.audio_device_name:
+        config.recording.audio_device = {
+            "name": args.audio_device_name,
+            "hostapi_name": args.audio_device_hostapi
+        }
 
     if args.tap_mode and args.push_to_talk:
         print("Error: Cannot specify both --tap-mode and --push-to-talk")

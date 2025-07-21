@@ -277,3 +277,51 @@ class AudioRecorder:
             "hostapi": hostapi_index,
             "hostapi_name": hostapi_name,
         }
+
+    @staticmethod
+    def find_device_by_config(device_config: Optional[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+        """
+        Find an audio device by its stable configuration (name + hostapi).
+
+        Args:
+            device_config: Dict with 'name' and optionally 'hostapi_name', or None
+
+        Returns:
+            Device dictionary if found, None otherwise
+        """
+        if not device_config or not device_config.get("name"):
+            return None
+
+        devices = AudioRecorder.list_input_devices()
+
+        # First try exact match (name + hostapi)
+        if device_config.get("hostapi_name"):
+            for device in devices:
+                if (
+                    device["name"] == device_config["name"]
+                    and device["hostapi_name"] == device_config["hostapi_name"]
+                ):
+                    return device
+
+        # Fallback to name-only match
+        for device in devices:
+            if device["name"] == device_config["name"]:
+                return device
+
+        return None
+
+    @staticmethod
+    def device_to_config(device: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Convert a device dictionary to config format.
+
+        Args:
+            device: Device dictionary from list_input_devices()
+
+        Returns:
+            Dict with 'name' and 'hostapi_name' keys
+        """
+        return {
+            "name": device["name"], 
+            "hostapi_name": device["hostapi_name"]
+        }

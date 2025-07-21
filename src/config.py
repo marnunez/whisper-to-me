@@ -20,7 +20,7 @@ class RecordingConfig:
     mode: str = "push-to-talk"  # "push-to-talk" or "tap-mode"
     trigger_key: str = "<scroll_lock>"
     discard_key: str = "<esc>"
-    audio_device: Optional[int] = None
+    audio_device: Optional[Dict[str, str]] = None  # {"name": str, "hostapi_name": str}
 
 
 @dataclass
@@ -129,27 +129,23 @@ class ConfigManager:
             },
         }
 
-        # Ensure audio_device is explicitly set
-        if default_config["recording"]["audio_device"] is None:
-            default_config["recording"]["audio_device"] = ""
+        # Audio device will be None by default
 
         self._save_config_to_file(default_config)
 
     def _save_config_to_file(self, config_dict: Dict[str, Any]) -> None:
         """Save configuration dictionary to TOML file."""
 
-        # Convert None values to empty strings for TOML compatibility
-        def sanitize_for_toml(obj):
+        # Remove None values for TOML compatibility
+        def remove_none_values(obj):
             if isinstance(obj, dict):
-                return {k: sanitize_for_toml(v) for k, v in obj.items()}
+                return {k: remove_none_values(v) for k, v in obj.items() if v is not None}
             elif isinstance(obj, list):
-                return [sanitize_for_toml(item) for item in obj]
-            elif obj is None:
-                return ""  # Convert None to empty string
+                return [remove_none_values(item) for item in obj]
             else:
                 return obj
 
-        sanitized_config = sanitize_for_toml(config_dict)
+        sanitized_config = remove_none_values(config_dict)
 
         with open(self.config_file, "wb") as f:
             tomli_w.dump(sanitized_config, f)
@@ -171,22 +167,6 @@ class ConfigManager:
         """Validate and sanitize configuration."""
         default = self._get_default_config()
 
-        # Convert empty strings back to None for specific fields
-        def restore_none_values(obj):
-            if isinstance(obj, dict):
-                result = {}
-                for k, v in obj.items():
-                    if k == "audio_device" and v == "":
-                        result[k] = None
-                    elif isinstance(v, dict):
-                        result[k] = restore_none_values(v)
-                    else:
-                        result[k] = v
-                return result
-            else:
-                return obj
-
-        config_dict = restore_none_values(config_dict)
 
         # Ensure all required sections exist
         for section in ["general", "recording", "ui", "advanced"]:

@@ -48,6 +48,23 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
     "ruff>=0.12.4",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "--cov=src",
+    "--cov=whisper_to_me",
+    "--cov-report=term-missing",
+    "-v"
+]
+
+[tool.coverage.run]
+source = ["src", "whisper_to_me.py"]
+omit = [
+    "*/tests/*",
+    "*/__init__.py",
 ]
 
