@@ -6,12 +6,10 @@ Eliminates code duplication in configuration management.
 """
 
 from dataclasses import asdict
-from typing import Any, Generic, TypeVar
-
-T = TypeVar("T")
+from typing import Any
 
 
-class ConfigDiffer(Generic[T]):
+class ConfigDiffer[T]:
     """
     Generic configuration differ for comparing and creating section diffs.
 

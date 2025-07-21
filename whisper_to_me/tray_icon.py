@@ -264,58 +264,39 @@ class TrayIcon:
                     devices_by_hostapi[hostapi_name] = []
                 devices_by_hostapi[hostapi_name].append(device)
 
-            # Create device submenu grouped by host API
+            # Create device submenu with flattened structure
             device_menu_items = []
 
             # Sort host APIs for consistent ordering
-            for hostapi_name in sorted(devices_by_hostapi.keys()):
+            hostapi_names = sorted(devices_by_hostapi.keys())
+            for i, hostapi_name in enumerate(hostapi_names):
                 hostapi_devices = devices_by_hostapi[hostapi_name]
 
-                # If only one host API, don't create submenus
-                if len(devices_by_hostapi) == 1:
-                    for device in hostapi_devices:
-                        device_name = device.get(
-                            "name", f"Device {device.get('id', '?')}"
-                        )
-                        if len(device_name) > 40:
-                            device_name = device_name[:37] + "..."
+                # Add separator between host API groups (except for the first one)
+                if i > 0:
+                    device_menu_items.append(pystray.Menu.SEPARATOR)
 
-                        is_current = current_device and device.get(
-                            "id"
-                        ) == current_device.get("id")
-                        display_name = f"✓ {device_name}" if is_current else device_name
+                # Add host API header (disabled menu item)
+                if len(devices_by_hostapi) > 1:
+                    device_menu_items.append(
+                        pystray.MenuItem(hostapi_name, None, enabled=False)
+                    )
 
-                        device_menu_items.append(
-                            pystray.MenuItem(
-                                display_name,
-                                self._create_device_switch_handler(device.get("id")),
-                            )
-                        )
-                else:
-                    # Create submenu for each host API
-                    hostapi_menu_items = []
-                    for device in hostapi_devices:
-                        device_name = device.get(
-                            "name", f"Device {device.get('id', '?')}"
-                        )
-                        if len(device_name) > 35:  # Shorter for nested menus
-                            device_name = device_name[:32] + "..."
+                # Add devices for this host API
+                for device in hostapi_devices:
+                    device_name = device.get("name", f"Device {device.get('id', '?')}")
+                    if len(device_name) > 40:
+                        device_name = device_name[:37] + "..."
 
-                        is_current = current_device and device.get(
-                            "id"
-                        ) == current_device.get("id")
-                        display_name = f"✓ {device_name}" if is_current else device_name
-
-                        hostapi_menu_items.append(
-                            pystray.MenuItem(
-                                display_name,
-                                self._create_device_switch_handler(device.get("id")),
-                            )
-                        )
+                    is_current = current_device and device.get(
+                        "id"
+                    ) == current_device.get("id")
+                    display_name = f"✓ {device_name}" if is_current else device_name
 
                     device_menu_items.append(
                         pystray.MenuItem(
-                            hostapi_name, pystray.Menu(*hostapi_menu_items)
+                            display_name,
+                            self._create_device_switch_handler(device.get("id")),
                         )
                     )
 
