@@ -48,6 +48,7 @@ class GeneralConfig:
     language: str = "auto"
     debug: bool = False
     last_profile: str = "default"
+    trailing_space: bool = False
 
 
 @dataclass
@@ -98,6 +99,7 @@ class ConfigManager:
                 "language": "auto",
                 "debug": False,
                 "last_profile": "default",
+                "trailing_space": False,
             },
             "recording": {
                 "mode": "push-to-talk",

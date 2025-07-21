@@ -29,9 +29,13 @@ class KeystrokeHandler:
         self.typing_speed = typing_speed
         self.keyboard_controller = keyboard.Controller()
 
-    def type_text(self, text: str) -> None:
+    def type_text(self, text: str, trailing_space: bool = False) -> None:
         """
         Simulate typing the given text
+
+        Args:
+            text: The text to type
+            trailing_space: Whether to add a space after the text
         """
         if not text or not text.strip():
             return
@@ -43,15 +47,25 @@ class KeystrokeHandler:
             self.keyboard_controller.type(char)
             time.sleep(self.typing_speed)
 
-    def type_text_fast(self, text: str) -> None:
+        if trailing_space:
+            self.add_space()
+
+    def type_text_fast(self, text: str, trailing_space: bool = False) -> None:
         """
         Type text without delays (faster)
+
+        Args:
+            text: The text to type
+            trailing_space: Whether to add a space after the text
         """
         if not text or not text.strip():
             return
 
         text = text.strip()
         self.keyboard_controller.type(text)
+
+        if trailing_space:
+            self.add_space()
 
     def press_key(self, key) -> None:
         """

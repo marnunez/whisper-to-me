@@ -351,7 +351,9 @@ class WhisperToMe:
                     )
                 if self.debug:
                     print(f"   '{text}' (duration: {duration:.2f}s)")
-                self.keystroke_handler.type_text_fast(text)
+                self.keystroke_handler.type_text_fast(
+                    text, self.config.general.trailing_space
+                )
             else:
                 print("✗ No speech detected")
 
@@ -505,6 +507,11 @@ Examples:
         action="store_true",
         help="Show configuration file path and exit",
     )
+    parser.add_argument(
+        "--trailing-space",
+        action="store_true",
+        help="Add a trailing space after transcribed text",
+    )
 
     args = parser.parse_args()
 
@@ -575,6 +582,11 @@ Examples:
         config.general.language = args.language
     elif args.language == "auto":
         config.general.language = "auto"
+
+    # Handle trailing space override
+    config.general.trailing_space = override_if_provided(
+        config.general.trailing_space, args.trailing_space
+    )
 
     # Override recording settings
     config.recording.trigger_key = override_if_provided(
