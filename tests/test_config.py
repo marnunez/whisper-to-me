@@ -43,7 +43,7 @@ class TestConfigManager:
         assert config.general.device == "cuda"
         assert config.general.language == "auto"
         assert config.recording.mode == "push-to-talk"
-        assert config.recording.trigger_key == "scroll_lock"
+        assert config.recording.trigger_key == "<scroll_lock>"
         assert config.ui.use_tray is True
 
     def test_profile_creation_and_loading(self):
@@ -54,7 +54,7 @@ class TestConfigManager:
         # Modify settings
         config.general.model = "medium"
         config.general.language = "en"
-        config.recording.trigger_key = "caps_lock"
+        config.recording.trigger_key = "<caps_lock>"
 
         # Create profile
         assert self.config_manager.create_profile("test_profile", config) is True
@@ -67,7 +67,7 @@ class TestConfigManager:
         profile_config = self.config_manager.apply_profile("test_profile")
         assert profile_config.general.model == "medium"
         assert profile_config.general.language == "en"
-        assert profile_config.recording.trigger_key == "caps_lock"
+        assert profile_config.recording.trigger_key == "<caps_lock>"
 
     def test_profile_switching(self):
         """Test switching between profiles."""
@@ -85,7 +85,7 @@ class TestConfigManager:
             ),
             recording=RecordingConfig(
                 mode="push-to-talk",
-                trigger_key="scroll_lock",
+                trigger_key="<scroll_lock>",
                 discard_key="esc",
                 audio_device=None,
             ),
@@ -106,7 +106,7 @@ class TestConfigManager:
             ),
             recording=RecordingConfig(
                 mode="tap-mode",
-                trigger_key="caps_lock",
+                trigger_key="<caps_lock>",
                 discard_key="esc",
                 audio_device=None,
             ),
@@ -128,7 +128,7 @@ class TestConfigManager:
         assert work_applied.general.model == "medium"
         assert work_applied.general.device == "cpu"
         assert work_applied.recording.mode == "tap-mode"
-        assert work_applied.recording.trigger_key == "caps_lock"
+        assert work_applied.recording.trigger_key == "<caps_lock>"
         assert work_applied.ui.use_tray is False
         assert self.config_manager.get_current_profile() == "work"
 
@@ -257,7 +257,7 @@ class TestConfigManager:
             ),
             recording=RecordingConfig(
                 mode="tap-mode",
-                trigger_key="caps_lock",
+                trigger_key="<caps_lock>",
                 discard_key="delete",
                 audio_device=1,
             ),
@@ -279,7 +279,7 @@ class TestConfigManager:
         assert applied.general.debug is True
 
         assert applied.recording.mode == "tap-mode"
-        assert applied.recording.trigger_key == "caps_lock"
+        assert applied.recording.trigger_key == "<caps_lock>"
         assert applied.recording.discard_key == "delete"
         assert applied.recording.audio_device == 1
 

@@ -92,7 +92,7 @@ whisper-to-me [options]
 Options:
   --model MODEL         Whisper model size (tiny, base, small, medium, large-v3)
   --device DEVICE       Processing device (cpu, cuda)
-  --key KEY            Trigger key (scroll_lock, pause, ctrl, alt, caps, etc.)
+  --key KEY            Trigger key (single key or combination, e.g., <scroll_lock>, <ctrl>+<shift>+r)
   --language LANG      Target language (auto, en, es, fr, etc.)
   --list-devices       List available audio input devices
   --audio-device ID    Audio device ID to use
@@ -110,7 +110,13 @@ Options:
 whisper-to-me
 
 # Use smaller model on CPU with caps lock trigger
-whisper-to-me --model base --device cpu --key caps_lock
+whisper-to-me --model base --device cpu --key "<caps_lock>"
+
+# Use key combination as trigger (Ctrl+Shift+R)
+whisper-to-me --key "<ctrl>+<shift>+r"
+
+# Use Ctrl+- (minus) as trigger
+whisper-to-me --key "<ctrl>+-"
 
 # Spanish transcription with debug mode
 whisper-to-me --language es --debug --audio-device 2
@@ -125,7 +131,7 @@ whisper-to-me --list-devices
 whisper-to-me --tap-mode
 
 # Tap mode with delete key to discard recordings
-whisper-to-me --tap-mode --discard-key delete
+whisper-to-me --tap-mode --discard-key "<delete>"
 ```
 
 ### System Tray
@@ -159,6 +165,28 @@ The system tray icon shows:
   - `large-v3`: Best accuracy (~1550MB, default)
 - **Audio Quality**: Better microphone input improves transcription accuracy
 
+### Key Combinations
+
+You can use key combinations as trigger keys:
+
+```bash
+# Single keys
+whisper-to-me --key "<scroll_lock>"
+whisper-to-me --key "<caps_lock>"
+whisper-to-me --key "a"           # Single character
+
+# Key combinations  
+whisper-to-me --key "<ctrl>+<shift>+r"
+whisper-to-me --key "<alt>+<space>"
+whisper-to-me --key "<ctrl>+-"    # Ctrl + minus
+whisper-to-me --key "<shift>+1"   # Shift + 1
+```
+
+Uses standard pynput format:
+- **Named keys**: Wrap in angle brackets `<ctrl>`, `<alt>`, `<shift>`, `<esc>`, `<tab>`, etc.
+- **Single characters**: Use directly `a`, `1`, `-`, `+`, etc.
+- **Combinations**: Join with `+` symbol
+
 ## Troubleshooting
 
 ### Common Issues
@@ -169,7 +197,7 @@ The system tray icon shows:
    microphone access
 3. **Audio issues**: Check microphone permissions with `--list-devices`
 4. **CUDA errors**: Install CUDA drivers or use `--device cpu`
-5. **Trigger key not working**: Try different keys like `--key caps_lock`
+5. **Trigger key not working**: Try different keys like `--key "<caps_lock>"`
 
 ### Debug Mode
 

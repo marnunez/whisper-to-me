@@ -18,8 +18,8 @@ class RecordingConfig:
     """Recording-specific configuration."""
 
     mode: str = "push-to-talk"  # "push-to-talk" or "tap-mode"
-    trigger_key: str = "scroll_lock"
-    discard_key: str = "esc"
+    trigger_key: str = "<scroll_lock>"
+    discard_key: str = "<esc>"
     audio_device: Optional[int] = None
 
 
@@ -101,8 +101,8 @@ class ConfigManager:
             },
             "recording": {
                 "mode": "push-to-talk",
-                "trigger_key": "scroll_lock",
-                "discard_key": "esc",
+                "trigger_key": "<scroll_lock>",
+                "discard_key": "<esc>",
                 "audio_device": None,
             },
             "ui": {"use_tray": True},
@@ -118,7 +118,7 @@ class ConfigManager:
         default_config["profiles"] = {
             "work": {
                 "general": {"language": "en", "model": "medium"},
-                "recording": {"trigger_key": "caps_lock"},
+                "recording": {"trigger_key": "<caps_lock>"},
             },
             "spanish": {"general": {"language": "es", "model": "large-v3"}},
             "quick": {
@@ -375,26 +375,25 @@ class ConfigManager:
         """Get the path to the configuration file."""
         return str(self.config_file)
 
+
+    def parse_key_combination(self, key_str: str) -> set[keyboard.Key]:
+        """Parse a key combination string into a set of pynput Key objects.
+
+        Uses pynput's built-in HotKey.parse for robust parsing.
+        Format: '<ctrl>+<shift>+r', '<scroll_lock>', 'a', '+'
+        """
+        try:
+            parsed_keys = keyboard.HotKey.parse(key_str)
+            return set(parsed_keys)
+        except ValueError as e:
+            raise ValueError(f"Invalid key combination: '{key_str}'. Use format like '<ctrl>+<shift>+r', '<scroll_lock>', or 'a'")
+
     def parse_key_string(self, key_str: str) -> keyboard.Key:
-        """Parse a key string into a pynput Key object."""
-        key_map = {
-            "ctrl": keyboard.Key.ctrl_l,
-            "alt": keyboard.Key.alt_l,
-            "shift": keyboard.Key.shift_l,
-            "caps": keyboard.Key.caps_lock,
-            "caps_lock": keyboard.Key.caps_lock,
-            "tab": keyboard.Key.tab,
-            "scroll_lock": keyboard.Key.scroll_lock,
-            "pause": keyboard.Key.pause,
-            "esc": keyboard.Key.esc,
-            "escape": keyboard.Key.esc,
-            "del": keyboard.Key.delete,
-            "delete": keyboard.Key.delete,
-            "backspace": keyboard.Key.backspace,
-        }
-
-        key = key_map.get(key_str.lower())
-        if key is None and hasattr(keyboard.Key, key_str.lower()):
-            key = getattr(keyboard.Key, key_str.lower())
-
-        return key or keyboard.Key.scroll_lock  # fallback
+        """Parse a single key string into a pynput Key object.
+        
+        Uses the same format as parse_key_combination but ensures only single keys.
+        """
+        parsed_keys = self.parse_key_combination(key_str)
+        if len(parsed_keys) != 1:
+            raise ValueError(f"Expected single key, got combination: '{key_str}'")
+        return list(parsed_keys)[0]

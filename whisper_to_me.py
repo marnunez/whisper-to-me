@@ -61,6 +61,9 @@ class WhisperToMe:
         self.recording_counter = 0
         self.tray_icon = None
         self.listener = None
+        self.trigger_hotkey = None
+        self.discard_hotkey = None
+        self.trigger_pressed = False  # Track if trigger combination is currently pressed
 
         # Extract current settings from config
         self._update_from_config()
@@ -94,22 +97,31 @@ class WhisperToMe:
             )
             self.tray_icon.start()
 
+        # Format key display for user
+        trigger_display = self.config.recording.trigger_key
+
         if self.config.recording.mode == "tap-mode":
-            print(f"✓ Ready! Tap {self.trigger_key} to start/stop recording")
-            print(f"  Press {self.discard_key} while recording to discard")
+            print(f"✓ Ready! Tap {trigger_display} to start/stop recording")
+            print(f"  Press {self.config.recording.discard_key} while recording to discard")
         else:
-            print(f"✓ Ready! Press and hold {self.trigger_key} to record")
+            print(f"✓ Ready! Press and hold {trigger_display} to record")
         print("Press Ctrl+C in terminal to exit")
         print("Note: This captures keys globally across all applications")
 
     def _update_from_config(self):
         """Update instance variables from current configuration."""
-        self.trigger_key = self.config_manager.parse_key_string(
-            self.config.recording.trigger_key
-        )
-        self.discard_key = self.config_manager.parse_key_string(
-            self.config.recording.discard_key
-        )
+        # Create HotKey objects for trigger and discard keys
+        trigger_keys = keyboard.HotKey.parse(self.config.recording.trigger_key)
+        discard_keys = keyboard.HotKey.parse(self.config.recording.discard_key)
+        
+        # Create HotKey instances with appropriate callbacks
+        if self.config.recording.mode == "tap-mode":
+            self.trigger_hotkey = keyboard.HotKey(trigger_keys, self._on_trigger_tap)
+            self.discard_hotkey = keyboard.HotKey(discard_keys, self._on_discard_tap)
+        else:
+            self.trigger_hotkey = keyboard.HotKey(trigger_keys, self._on_trigger_press)
+            # In push-to-talk mode, we need to handle release separately
+            self.discard_hotkey = None  # Not used in push-to-talk mode
         self.debug = self.config.general.debug
         self.tap_mode = self.config.recording.mode == "tap-mode"
 
@@ -161,47 +173,55 @@ class WhisperToMe:
 
         print("✓ Profile switch completed")
 
-    def on_key_press(self, key):
-        """
-        Handle key press events. Behavior depends on recording mode.
-
-        Args:
-            key: The key that was pressed
-        """
-        if self.tap_mode:
-            # Tap mode: toggle recording on trigger key press
-            if key == self.trigger_key:
-                if not self.is_recording:
-                    # Start recording
-                    self.is_recording = True
-                    self.audio_recorder.start_recording()
-                    # Update tray icon
-                    if self.tray_icon:
-                        self.tray_icon.update_icon(recording=True)
-                else:
-                    # Stop recording and transcribe
-                    self._stop_and_transcribe()
-            elif key == self.discard_key and self.is_recording:
-                # Discard current recording
-                self._discard_recording()
+    def _on_trigger_tap(self):
+        """Handle trigger key combination in tap mode."""
+        if not self.is_recording:
+            # Start recording
+            self.is_recording = True
+            self.audio_recorder.start_recording()
+            # Update tray icon
+            if self.tray_icon:
+                self.tray_icon.update_icon(recording=True)
         else:
-            # Push-to-talk mode: start recording on trigger key press
-            if key == self.trigger_key and not self.is_recording:
-                self.is_recording = True
-                self.audio_recorder.start_recording()
-                # Update tray icon
-                if self.tray_icon:
-                    self.tray_icon.update_icon(recording=True)
+            # Stop recording and transcribe
+            self._stop_and_transcribe()
+
+    def _on_trigger_press(self):
+        """Handle trigger key combination press in push-to-talk mode."""
+        self.trigger_pressed = True
+        if not self.is_recording:
+            self.is_recording = True
+            self.audio_recorder.start_recording()
+            # Update tray icon
+            if self.tray_icon:
+                self.tray_icon.update_icon(recording=True)
+
+    def _on_discard_tap(self):
+        """Handle discard key combination in tap mode."""
+        if self.is_recording:
+            self._discard_recording()
+
+    def on_key_press(self, key):
+        """Handle key press events using HotKey state tracking."""
+        # Let HotKey objects handle the state tracking
+        canonical_key = self.listener.canonical(key)
+        if self.trigger_hotkey:
+            self.trigger_hotkey.press(canonical_key)
+        if self.discard_hotkey:
+            self.discard_hotkey.press(canonical_key)
 
     def on_key_release(self, key):
-        """
-        Handle key release events. Only used in push-to-talk mode.
-
-        Args:
-            key: The key that was released
-        """
-        if not self.tap_mode and key == self.trigger_key and self.is_recording:
-            # Push-to-talk mode: stop recording and transcribe on key release
+        """Handle key release events using HotKey state tracking."""
+        # Let HotKey objects handle the state tracking
+        canonical_key = self.listener.canonical(key)
+        if self.trigger_hotkey:
+            self.trigger_hotkey.release(canonical_key)
+        if self.discard_hotkey:
+            self.discard_hotkey.release(canonical_key)
+            
+        # In push-to-talk mode, stop recording when any key is released after trigger was pressed
+        if not self.tap_mode and self.trigger_pressed and self.is_recording:
+            self.trigger_pressed = False
             self._stop_and_transcribe()
 
     def _stop_and_transcribe(self):
@@ -313,11 +333,12 @@ def main():
         epilog="""
 Examples:
   %(prog)s                              # Use default settings (push-to-talk)
-  %(prog)s --key caps_lock              # Use caps lock as trigger
+  %(prog)s --key "<caps_lock>"          # Use caps lock as trigger
   %(prog)s --model base --device cpu    # Use smaller model on CPU
   %(prog)s --debug --audio-device 2     # Debug mode with specific device
   %(prog)s --tap-mode                   # Use tap-to-start/tap-to-stop mode
-  %(prog)s --tap-mode --discard-key del # Tap mode with delete key to discard
+  %(prog)s --push-to-talk               # Use push-to-talk mode
+  %(prog)s --tap-mode --discard-key "<delete>" # Tap mode with delete key to discard
   %(prog)s --list-devices               # Show available audio devices
   %(prog)s --profile work               # Use work profile
   %(prog)s --list-profiles              # Show available profiles
@@ -336,8 +357,8 @@ Examples:
     )
     parser.add_argument(
         "--key",
-        default="scroll_lock",
-        help="Trigger key (scroll_lock, pause, ctrl, alt, caps, etc)",
+        default="<scroll_lock>",
+        help="Trigger key (single key or combination, e.g., <scroll_lock>, <ctrl>+<shift>+r, <ctrl>+-)",
     )
     parser.add_argument(
         "--list-devices",
@@ -366,9 +387,14 @@ Examples:
         help="Use tap-to-start/tap-to-stop instead of push-to-talk",
     )
     parser.add_argument(
+        "--push-to-talk",
+        action="store_true",
+        help="Use push-to-talk mode instead of tap-to-start/tap-to-stop",
+    )
+    parser.add_argument(
         "--discard-key",
-        default="esc",
-        help="Key to discard recording in tap mode (default: esc)",
+        default="<esc>",
+        help="Key to discard recording in tap mode (default: <esc>)",
     )
     parser.add_argument(
         "--profile",
@@ -459,8 +485,13 @@ Examples:
         config.recording.audio_device, args.audio_device
     )
 
-    if args.tap_mode:
+    if args.tap_mode and args.push_to_talk:
+        print("Error: Cannot specify both --tap-mode and --push-to-talk")
+        return
+    elif args.tap_mode:
         config.recording.mode = "tap-mode"
+    elif args.push_to_talk:
+        config.recording.mode = "push-to-talk"
 
     # Override UI settings
     if args.no_tray:
@@ -473,6 +504,30 @@ Examples:
             print(f"✓ Profile '{args.create_profile}' created successfully")
         else:
             print(f"✗ Failed to create profile '{args.create_profile}'")
+        return
+
+    # Validate key configurations before starting
+    try:
+        # Validate trigger key combination
+        config_manager.parse_key_combination(config.recording.trigger_key)
+    except ValueError as e:
+        print(f"Error in trigger key configuration: {e}")
+        print(f"Invalid trigger key: '{config.recording.trigger_key}'")
+        print("\nValid trigger keys include:")
+        print("  - Single keys: scroll_lock, caps_lock, pause, tab, etc.")
+        print("  - Single characters: a-z, 0-9, symbols")
+        print("  - Combinations: ctrl+shift+r, alt+space, ctrl+-, etc.")
+        return
+
+    try:
+        # Validate discard key (single key only)
+        config_manager.parse_key_string(config.recording.discard_key)
+    except ValueError as e:
+        print(f"Error in discard key configuration: {e}")
+        print(f"Invalid discard key: '{config.recording.discard_key}'")
+        print("\nValid discard keys include:")
+        print("  - Named keys: esc, delete, backspace, tab, etc.")
+        print("  - Note: Discard key must be a single key, not a combination")
         return
 
     # Ensure single instance and run application
