@@ -1,13 +1,8 @@
 """Test configuration validator functionality."""
 
-import sys
-import os
 import pytest
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from config_validator import ConfigValidator, ValidationError
+from whisper_to_me.config_validator import ConfigValidator, ValidationError
 
 
 class TestConfigValidator:

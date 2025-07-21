@@ -1,13 +1,8 @@
 """Test menu builder functionality."""
 
-import sys
-import os
 from unittest.mock import Mock, patch
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from menu_builder import (
+from whisper_to_me.menu_builder import (
     MenuBuilder,
     ProfileMenuFormatter,
     DeviceMenuFormatter,
@@ -22,13 +17,13 @@ class TestMenuBuilder:
         """Set up test environment."""
         self.builder = MenuBuilder()
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_init(self, mock_menu_item):
         """Test MenuBuilder initialization."""
         builder = MenuBuilder()
         assert builder.menu_items == []
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_add_header(self, mock_menu_item):
         """Test add_header method."""
         mock_item = Mock()
@@ -39,7 +34,7 @@ class TestMenuBuilder:
         mock_menu_item.assert_called_once_with("Test Header", None, enabled=True)
         assert mock_item in self.builder.menu_items
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_add_header_default_disabled(self, mock_menu_item):
         """Test add_header with default enabled=False."""
         mock_item = Mock()
@@ -49,7 +44,7 @@ class TestMenuBuilder:
 
         mock_menu_item.assert_called_once_with("Test Header", None, enabled=False)
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_add_default_header(self, mock_menu_item):
         """Test add_default_header method."""
         mock_item = Mock()
@@ -62,7 +57,7 @@ class TestMenuBuilder:
         )
         assert mock_item in self.builder.menu_items
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_add_info_item(self, mock_menu_item):
         """Test add_info_item method."""
         mock_item = Mock()
@@ -73,7 +68,7 @@ class TestMenuBuilder:
         mock_menu_item.assert_called_once_with("Info text", None, enabled=False)
         assert mock_item in self.builder.menu_items
 
-    @patch("menu_builder.pystray.Menu")
+    @patch("whisper_to_me.menu_builder.pystray.Menu")
     def test_add_separator(self, mock_menu):
         """Test add_separator method."""
         mock_separator = Mock()
@@ -83,7 +78,7 @@ class TestMenuBuilder:
 
         assert mock_separator in self.builder.menu_items
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_add_action_item(self, mock_menu_item):
         """Test add_action_item method."""
         mock_item = Mock()
@@ -95,8 +90,8 @@ class TestMenuBuilder:
         mock_menu_item.assert_called_once_with("Action", mock_handler)
         assert mock_item in self.builder.menu_items
 
-    @patch("menu_builder.pystray.MenuItem")
-    @patch("menu_builder.pystray.Menu")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.Menu")
     def test_add_submenu(self, mock_menu, mock_menu_item):
         """Test add_submenu method."""
         mock_item = Mock()
@@ -111,7 +106,7 @@ class TestMenuBuilder:
         mock_menu_item.assert_called_once_with("Submenu", mock_submenu)
         assert mock_item in self.builder.menu_items
 
-    @patch("menu_builder.pystray.Menu")
+    @patch("whisper_to_me.menu_builder.pystray.Menu")
     def test_build(self, mock_menu):
         """Test build method."""
         mock_built_menu = Mock()
@@ -136,8 +131,8 @@ class TestMenuBuilder:
 
         assert self.builder.menu_items == []
 
-    @patch("menu_builder.pystray.MenuItem")
-    @patch("menu_builder.pystray.Menu")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.Menu")
     def test_complex_menu_building(self, mock_menu, mock_menu_item):
         """Test building a complex menu with various items."""
         # Mock return values
@@ -182,7 +177,7 @@ class TestProfileMenuFormatter:
         assert self.formatter.get_current_profile == self.get_current_profile
         assert self.formatter.profile_switch_handler == self.profile_switch_handler
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_profile_menu_items_single_profile(self, mock_menu_item):
         """Test create_profile_menu_items with single profile."""
         self.get_profiles.return_value = ["default"]
@@ -192,7 +187,7 @@ class TestProfileMenuFormatter:
         assert result == []
         mock_menu_item.assert_not_called()
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_profile_menu_items_no_profiles(self, mock_menu_item):
         """Test create_profile_menu_items with no profiles."""
         self.get_profiles.return_value = []
@@ -202,7 +197,7 @@ class TestProfileMenuFormatter:
         assert result == []
         mock_menu_item.assert_not_called()
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_profile_menu_items_multiple_profiles(self, mock_menu_item):
         """Test create_profile_menu_items with multiple profiles."""
         profiles = ["default", "work", "gaming"]
@@ -241,7 +236,7 @@ class TestProfileMenuFormatter:
             else:
                 assert "○" in display_name  # Other profiles
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_profile_menu_items_order_preservation(self, mock_menu_item):
         """Test that profile order is preserved."""
         profiles = ["zebra", "alpha", "beta"]
@@ -277,7 +272,7 @@ class TestDeviceMenuFormatter:
         assert self.formatter.get_current_device == self.get_current_device
         assert self.formatter.device_switch_handler == self.device_switch_handler
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_menu_items_no_devices(self, mock_menu_item):
         """Test create_device_menu_items with no devices."""
         self.get_devices.return_value = []
@@ -287,7 +282,7 @@ class TestDeviceMenuFormatter:
         assert result == []
         mock_menu_item.assert_not_called()
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_menu_items_single_device(self, mock_menu_item):
         """Test create_device_menu_items with single device."""
         devices = [{"id": 1, "name": "Device 1", "hostapi_name": "ALSA"}]
@@ -298,7 +293,7 @@ class TestDeviceMenuFormatter:
         assert result == []
         mock_menu_item.assert_not_called()
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_menu_items_single_hostapi(self, mock_menu_item):
         """Test create_device_menu_items with single host API."""
         devices = [
@@ -323,8 +318,8 @@ class TestDeviceMenuFormatter:
         mock_menu_item.assert_any_call("✓ Device 1", mock_handlers[0])
         mock_menu_item.assert_any_call("Device 2", mock_handlers[1])
 
-    @patch("menu_builder.pystray.MenuItem")
-    @patch("menu_builder.pystray.Menu")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.Menu")
     def test_create_device_menu_items_multiple_hostapis(
         self, mock_menu, mock_menu_item
     ):
@@ -382,7 +377,7 @@ class TestDeviceMenuFormatter:
 
         assert result == expected
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_items_basic(self, mock_menu_item):
         """Test _create_device_items method."""
         devices = [{"id": 1, "name": "Device 1"}, {"id": 2, "name": "Device 2"}]
@@ -405,7 +400,7 @@ class TestDeviceMenuFormatter:
         )  # Current device marked
         mock_menu_item.assert_any_call("Device 2", mock_handlers[1])
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_items_long_names(self, mock_menu_item):
         """Test _create_device_items with long device names."""
         devices = [
@@ -429,7 +424,7 @@ class TestDeviceMenuFormatter:
         assert len(truncated_name) <= 40
         assert "..." in truncated_name
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_items_nested_shorter_limit(self, mock_menu_item):
         """Test _create_device_items with is_nested=True (shorter limit)."""
         devices = [
@@ -448,7 +443,7 @@ class TestDeviceMenuFormatter:
         assert len(truncated_name) <= 35
         assert "..." in truncated_name
 
-    @patch("menu_builder.pystray.MenuItem")
+    @patch("whisper_to_me.menu_builder.pystray.MenuItem")
     def test_create_device_items_missing_name(self, mock_menu_item):
         """Test _create_device_items with device missing name."""
         devices = [
@@ -474,7 +469,7 @@ class TestTrayMenuBuilder:
         """Set up test environment."""
         self.builder = TrayMenuBuilder()
 
-    @patch("menu_builder.MenuBuilder")
+    @patch("whisper_to_me.menu_builder.MenuBuilder")
     def test_init(self, mock_menu_builder_class):
         """Test TrayMenuBuilder initialization."""
         mock_menu_builder = Mock()

@@ -1,14 +1,9 @@
 """Test audio recorder functionality."""
 
-import sys
-import os
 import numpy as np
 from unittest.mock import Mock, patch
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from audio_recorder import AudioRecorder
+from whisper_to_me.audio_recorder import AudioRecorder
 
 
 class TestAudioRecorder:

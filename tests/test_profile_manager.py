@@ -1,16 +1,17 @@
 """Test profile manager functionality."""
 
-import sys
-import os
 import pytest
 from unittest.mock import Mock, patch
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from profile_manager import ProfileManager
-from config import AppConfig, GeneralConfig, RecordingConfig, UIConfig, AdvancedConfig
-from speech_processor import SpeechProcessor
+from whisper_to_me.profile_manager import ProfileManager
+from whisper_to_me.config import (
+    AppConfig,
+    GeneralConfig,
+    RecordingConfig,
+    UIConfig,
+    AdvancedConfig,
+)
+from whisper_to_me.speech_processor import SpeechProcessor
 
 
 class TestProfileManager:
@@ -26,7 +27,7 @@ class TestProfileManager:
         self.default_config = self._create_test_config("base", "cpu", "en")
         self.work_config = self._create_test_config("large-v3", "cuda", "fr")
 
-        with patch("profile_manager.get_logger"):
+        with patch("whisper_to_me.profile_manager.get_logger"):
             self.manager = ProfileManager(
                 self.config_manager, self.component_factory, self.on_config_changed
             )
@@ -57,7 +58,7 @@ class TestProfileManager:
 
         return config
 
-    @patch("profile_manager.get_logger")
+    @patch("whisper_to_me.profile_manager.get_logger")
     def test_init(self, mock_get_logger):
         """Test ProfileManager initialization."""
         mock_logger = Mock()

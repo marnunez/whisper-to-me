@@ -6,10 +6,7 @@ import time
 from pathlib import Path
 import os
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from single_instance import SingleInstance
+from whisper_to_me.single_instance import SingleInstance
 
 
 class TestSingleInstance:
@@ -66,13 +63,13 @@ class TestSingleInstance:
     def test_multiple_instances_fail(self):
         """Test that second instance exits with error."""
         # Create a small test script that uses SingleInstance
-        src_path = Path(__file__).parent.parent / "src"
+        src_path = Path(__file__).parent.parent
         test_script = Path(__file__).parent / "test_instance_script.py"
         test_script.write_text(f"""
 import sys
 import time
 sys.path.insert(0, '{src_path}')
-from single_instance import SingleInstance
+from whisper_to_me.single_instance import SingleInstance
 
 with SingleInstance():
     time.sleep(1)  # Hold lock for 1 second

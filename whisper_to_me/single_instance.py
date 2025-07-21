@@ -9,7 +9,7 @@ import sys
 import fcntl
 import atexit
 from pathlib import Path
-from logger import get_logger
+from whisper_to_me.logger import get_logger
 
 
 class SingleInstance:

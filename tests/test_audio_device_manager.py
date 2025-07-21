@@ -1,15 +1,10 @@
 """Test audio device manager functionality."""
 
-import sys
-import os
 import pytest
 from unittest.mock import patch
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from audio_device_manager import AudioDeviceManager, AudioDevice
-from audio_exceptions import (
+from whisper_to_me.audio_device_manager import AudioDeviceManager, AudioDevice
+from whisper_to_me.audio_exceptions import (
     AudioDeviceTestError,
     AudioDeviceInitializationError,
     NoAudioDevicesError,

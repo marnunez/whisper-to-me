@@ -34,7 +34,7 @@ dependencies = [
 ]
 
 [project.scripts]
-whisper-to-me = "whisper_to_me:main"
+whisper-to-me = "whisper_to_me.main:main"
 
 [project.urls]
 Homepage = "https://github.com/marnunez/whisper-to-me"
@@ -55,14 +55,13 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
-    "--cov=src",
     "--cov=whisper_to_me",
     "--cov-report=term-missing",
     "-v"
 ]
 
 [tool.coverage.run]
-source = ["src", "whisper_to_me.py"]
+source = ["whisper_to_me"]
 omit = [
     "*/tests/*",
     "*/__init__.py",

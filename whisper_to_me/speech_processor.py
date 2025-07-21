@@ -8,7 +8,7 @@ parameters for accuracy and performance.
 from faster_whisper import WhisperModel
 import numpy as np
 from typing import Optional, Tuple, List, Dict, Any
-from logger import get_logger
+from whisper_to_me.logger import get_logger
 
 
 class SpeechProcessor:

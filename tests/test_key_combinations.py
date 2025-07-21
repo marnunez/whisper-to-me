@@ -1,13 +1,8 @@
 """Test key combination parsing functionality using pynput HotKey.parse."""
 
-import os
-import sys
 import pytest
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from config import ConfigManager
+from whisper_to_me.config import ConfigManager
 from pynput import keyboard
 
 

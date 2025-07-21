@@ -10,7 +10,7 @@ from PIL import Image, ImageDraw
 import threading
 import os
 from typing import Optional, Callable, List
-from logger import get_logger
+from whisper_to_me.logger import get_logger
 
 
 class TrayIcon:

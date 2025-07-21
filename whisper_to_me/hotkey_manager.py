@@ -7,7 +7,7 @@ Extracted from the main application to improve separation of concerns.
 
 from typing import Callable, Optional
 from pynput import keyboard
-from config import AppConfig
+from whisper_to_me.config import AppConfig
 
 
 class HotkeyManager:

@@ -8,13 +8,13 @@ selection, persistence, and fallback handling.
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Any
 import sounddevice as sd
-from audio_exceptions import (
+from whisper_to_me.audio_exceptions import (
     AudioDeviceTestError,
     AudioDeviceInitializationError,
     NoAudioDevicesError,
     AudioConfigurationError,
 )
-from logger import get_logger
+from whisper_to_me.logger import get_logger
 
 
 @dataclass

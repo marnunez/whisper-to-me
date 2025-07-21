@@ -6,10 +6,10 @@ Extracted from the main application to improve separation of concerns.
 """
 
 from typing import Callable, Optional
-from config import ConfigManager, AppConfig
-from speech_processor import SpeechProcessor
-from component_factory import ComponentFactory
-from logger import get_logger
+from whisper_to_me.config import ConfigManager, AppConfig
+from whisper_to_me.speech_processor import SpeechProcessor
+from whisper_to_me.component_factory import ComponentFactory
+from whisper_to_me.logger import get_logger
 
 
 class ProfileManager:

@@ -8,7 +8,7 @@ for speech recognition applications.
 import sounddevice as sd
 import numpy as np
 from typing import Optional, List
-from logger import get_logger
+from whisper_to_me.logger import get_logger
 
 
 class AudioRecorder:

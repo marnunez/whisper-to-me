@@ -1,15 +1,10 @@
 """Test component factory functionality."""
 
-import sys
-import os
 import pytest
 from unittest.mock import Mock, patch
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from component_factory import ComponentFactory
-from config import (
+from whisper_to_me.component_factory import ComponentFactory
+from whisper_to_me.config import (
     AppConfig,
     GeneralConfig,
     RecordingConfig,
@@ -17,12 +12,12 @@ from config import (
     AdvancedConfig,
     ConfigManager,
 )
-from audio_device_manager import AudioDeviceManager, AudioDevice
-from audio_recorder import AudioRecorder
-from speech_processor import SpeechProcessor
-from keystroke_handler import KeystrokeHandler
-from tray_icon import TrayIcon
-from application_state_manager import ApplicationStateManager
+from whisper_to_me.audio_device_manager import AudioDeviceManager, AudioDevice
+from whisper_to_me.audio_recorder import AudioRecorder
+from whisper_to_me.speech_processor import SpeechProcessor
+from whisper_to_me.keystroke_handler import KeystrokeHandler
+from whisper_to_me.tray_icon import TrayIcon
+from whisper_to_me.application_state_manager import ApplicationStateManager
 
 
 class TestComponentFactory:
@@ -68,7 +63,7 @@ class TestComponentFactory:
         expected_config = {"name": "Test Device", "hostapi_name": "ALSA"}
         assert device_manager._device_config == expected_config
 
-    @patch("component_factory.AudioRecorder")
+    @patch("whisper_to_me.component_factory.AudioRecorder")
     def test_create_audio_recorder_success(self, mock_recorder_class):
         """Test successful audio recorder creation."""
         # Mock device manager
@@ -90,7 +85,7 @@ class TestComponentFactory:
             device_id=3, device_name="Test Device"
         )
 
-    @patch("component_factory.AudioRecorder")
+    @patch("whisper_to_me.component_factory.AudioRecorder")
     def test_create_audio_recorder_device_failure_with_fallback(
         self, mock_recorder_class
     ):
@@ -144,7 +139,7 @@ class TestComponentFactory:
         assert mock_device_manager._device_config is None
         assert mock_device_manager._current_device is None
 
-    @patch("component_factory.AudioRecorder")
+    @patch("whisper_to_me.component_factory.AudioRecorder")
     def test_create_audio_recorder_default_device_failure(self, mock_recorder_class):
         """Test audio recorder creation with default device failure."""
         # Mock device manager with no current device
@@ -161,7 +156,7 @@ class TestComponentFactory:
         assert "Audio recorder initialization failed" in str(exc_info.value)
         mock_recorder_class.assert_called_once_with(device_id=None, device_name=None)
 
-    @patch("component_factory.SpeechProcessor")
+    @patch("whisper_to_me.component_factory.SpeechProcessor")
     def test_create_speech_processor(self, mock_processor_class):
         """Test create_speech_processor method."""
         mock_processor_instance = Mock(spec=SpeechProcessor)
@@ -174,7 +169,7 @@ class TestComponentFactory:
             model_size="base", device="cpu", language="en"
         )
 
-    @patch("component_factory.SpeechProcessor")
+    @patch("whisper_to_me.component_factory.SpeechProcessor")
     def test_create_speech_processor_auto_language(self, mock_processor_class):
         """Test create_speech_processor with auto language detection."""
         # Set language to auto
@@ -192,7 +187,7 @@ class TestComponentFactory:
             language=None,  # Should pass None for auto detection
         )
 
-    @patch("component_factory.KeystrokeHandler")
+    @patch("whisper_to_me.component_factory.KeystrokeHandler")
     def test_create_keystroke_handler(self, mock_handler_class):
         """Test create_keystroke_handler method."""
         mock_handler_instance = Mock(spec=KeystrokeHandler)
@@ -203,7 +198,7 @@ class TestComponentFactory:
         assert handler == mock_handler_instance
         mock_handler_class.assert_called_once_with()
 
-    @patch("component_factory.TrayIcon")
+    @patch("whisper_to_me.component_factory.TrayIcon")
     def test_create_tray_icon_enabled(self, mock_tray_class):
         """Test create_tray_icon when tray is enabled."""
         mock_tray_instance = Mock(spec=TrayIcon)
@@ -262,7 +257,7 @@ class TestComponentFactory:
         assert isinstance(state_manager, ApplicationStateManager)
         assert state_manager == self.factory.state_manager
 
-    @patch("component_factory.SpeechProcessor")
+    @patch("whisper_to_me.component_factory.SpeechProcessor")
     def test_recreate_speech_processor_language_change(self, mock_processor_class):
         """Test recreate_speech_processor with language change."""
         mock_processor_instance = Mock(spec=SpeechProcessor)
@@ -292,7 +287,7 @@ class TestComponentFactory:
             model_size="base", device="cpu", language="en"
         )
 
-    @patch("component_factory.SpeechProcessor")
+    @patch("whisper_to_me.component_factory.SpeechProcessor")
     def test_recreate_speech_processor_model_change(self, mock_processor_class):
         """Test recreate_speech_processor with model change."""
         mock_processor_instance = Mock(spec=SpeechProcessor)
@@ -318,7 +313,7 @@ class TestComponentFactory:
 
         assert new_processor == mock_processor_instance
 
-    @patch("component_factory.SpeechProcessor")
+    @patch("whisper_to_me.component_factory.SpeechProcessor")
     def test_recreate_speech_processor_device_change(self, mock_processor_class):
         """Test recreate_speech_processor with device change."""
         mock_processor_instance = Mock(spec=SpeechProcessor)
@@ -366,7 +361,7 @@ class TestComponentFactory:
 
         assert new_processor is None  # No recreation needed
 
-    @patch("component_factory.SpeechProcessor")
+    @patch("whisper_to_me.component_factory.SpeechProcessor")
     def test_recreate_speech_processor_multiple_changes(self, mock_processor_class):
         """Test recreate_speech_processor with multiple changes."""
         mock_processor_instance = Mock(spec=SpeechProcessor)
@@ -417,7 +412,7 @@ class TestComponentFactory:
             profiles={"test": {}},
         )
 
-        with patch("component_factory.SpeechProcessor"):
+        with patch("whisper_to_me.component_factory.SpeechProcessor"):
             self.factory.recreate_speech_processor(original_config, new_config)
 
         # Factory config should be updated

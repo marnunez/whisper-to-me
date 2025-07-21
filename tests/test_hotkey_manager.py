@@ -1,14 +1,9 @@
 """Test hotkey manager functionality."""
 
-import sys
-import os
 from unittest.mock import Mock, patch, call
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from hotkey_manager import HotkeyManager
-from config import AppConfig, RecordingConfig
+from whisper_to_me.hotkey_manager import HotkeyManager
+from whisper_to_me.config import AppConfig, RecordingConfig
 
 
 class TestHotkeyManager:
@@ -25,13 +20,13 @@ class TestHotkeyManager:
         self.config = Mock(spec=AppConfig)
         self.config.recording = self.recording_config
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_init_push_to_talk_mode(self, mock_hotkey_class):
         """Test HotkeyManager initialization in push-to-talk mode."""
         mock_trigger_hotkey = Mock()
         mock_hotkey_class.return_value = mock_trigger_hotkey
 
-        with patch("hotkey_manager.keyboard.HotKey.parse") as mock_parse:
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse") as mock_parse:
             mock_parse.side_effect = [
                 ["ctrl", "shift", "r"],  # trigger key
                 ["esc"],  # discard key
@@ -54,7 +49,7 @@ class TestHotkeyManager:
                 ["ctrl", "shift", "r"], manager._handle_trigger_press
             )
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_init_tap_mode(self, mock_hotkey_class):
         """Test HotkeyManager initialization in tap mode."""
         self.config.recording.mode = "tap-mode"
@@ -63,7 +58,7 @@ class TestHotkeyManager:
         mock_discard_hotkey = Mock()
         mock_hotkey_class.side_effect = [mock_trigger_hotkey, mock_discard_hotkey]
 
-        with patch("hotkey_manager.keyboard.HotKey.parse") as mock_parse:
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse") as mock_parse:
             mock_parse.side_effect = [
                 ["ctrl", "shift", "r"],  # trigger key
                 ["esc"],  # discard key
@@ -81,10 +76,10 @@ class TestHotkeyManager:
             ]
             mock_hotkey_class.assert_has_calls(expected_calls)
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_set_callbacks(self, mock_hotkey_class):
         """Test setting callback functions."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         # Mock callback functions
@@ -105,10 +100,10 @@ class TestHotkeyManager:
         assert manager.on_discard_tap == on_discard_tap
         assert manager.on_trigger_release == on_trigger_release
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_set_callbacks_partial(self, mock_hotkey_class):
         """Test setting only some callbacks."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         on_trigger_press = Mock()
@@ -120,10 +115,10 @@ class TestHotkeyManager:
         assert manager.on_discard_tap is None
         assert manager.on_trigger_release is None
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_handle_trigger_press(self, mock_hotkey_class):
         """Test _handle_trigger_press method."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         # Test with no callback
@@ -136,10 +131,10 @@ class TestHotkeyManager:
         manager._handle_trigger_press()
         callback.assert_called_once()
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_handle_trigger_tap(self, mock_hotkey_class):
         """Test _handle_trigger_tap method."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         # Test with no callback
@@ -152,10 +147,10 @@ class TestHotkeyManager:
         manager._handle_trigger_tap()
         callback.assert_called_once()
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_handle_discard_tap(self, mock_hotkey_class):
         """Test _handle_discard_tap method."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         # Test with no callback
@@ -168,17 +163,17 @@ class TestHotkeyManager:
         manager._handle_discard_tap()
         callback.assert_called_once()
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_on_key_press_no_listener(self, mock_hotkey_class):
         """Test on_key_press when no listener is active."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         mock_key = Mock()
         manager.on_key_press(mock_key)  # Should not raise
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_on_key_press_with_listener(self, mock_listener_class, mock_hotkey_class):
         """Test on_key_press with active listener."""
         mock_trigger_hotkey = Mock()
@@ -188,7 +183,7 @@ class TestHotkeyManager:
         mock_listener.canonical.return_value = "canonical_key"
         mock_listener_class.return_value = mock_listener
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener
             manager.trigger_hotkey = mock_trigger_hotkey
@@ -201,8 +196,8 @@ class TestHotkeyManager:
         mock_listener.canonical.assert_called_once_with(mock_key)
         mock_trigger_hotkey.press.assert_called_once_with("canonical_key")
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_on_key_press_with_both_hotkeys(
         self, mock_listener_class, mock_hotkey_class
     ):
@@ -217,7 +212,7 @@ class TestHotkeyManager:
         mock_listener.canonical.return_value = "canonical_key"
         mock_listener_class.return_value = mock_listener
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener
 
@@ -228,17 +223,17 @@ class TestHotkeyManager:
         mock_trigger_hotkey.press.assert_called_once_with("canonical_key")
         mock_discard_hotkey.press.assert_called_once_with("canonical_key")
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_on_key_release_no_listener(self, mock_hotkey_class):
         """Test on_key_release when no listener is active."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         mock_key = Mock()
         manager.on_key_release(mock_key)  # Should not raise
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_on_key_release_push_to_talk_mode(
         self, mock_listener_class, mock_hotkey_class
     ):
@@ -249,7 +244,7 @@ class TestHotkeyManager:
         mock_listener = Mock()
         mock_listener.canonical.return_value = "canonical_key"
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener
             manager.trigger_hotkey = mock_trigger_hotkey
@@ -266,8 +261,8 @@ class TestHotkeyManager:
         mock_trigger_hotkey.release.assert_called_once_with("canonical_key")
         callback.assert_called_once()
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_on_key_release_tap_mode(self, mock_listener_class, mock_hotkey_class):
         """Test on_key_release in tap mode."""
         self.config.recording.mode = "tap-mode"
@@ -279,7 +274,7 @@ class TestHotkeyManager:
         mock_listener = Mock()
         mock_listener.canonical.return_value = "canonical_key"
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener
 
@@ -294,14 +289,14 @@ class TestHotkeyManager:
         mock_discard_hotkey.release.assert_called_once_with("canonical_key")
         callback.assert_not_called()
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_start_listening(self, mock_listener_class, mock_hotkey_class):
         """Test start_listening method."""
         mock_listener = Mock()
         mock_listener_class.return_value = mock_listener
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         manager.start_listening()
@@ -313,8 +308,8 @@ class TestHotkeyManager:
         mock_listener.start.assert_called_once()
         assert manager.listener == mock_listener
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_start_listening_already_active(
         self, mock_listener_class, mock_hotkey_class
     ):
@@ -322,7 +317,7 @@ class TestHotkeyManager:
         mock_listener = Mock()
         mock_listener_class.return_value = mock_listener
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener  # Already active
 
@@ -332,12 +327,12 @@ class TestHotkeyManager:
         mock_listener_class.assert_not_called()
         mock_listener.start.assert_not_called()
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_stop_listening(self, mock_hotkey_class):
         """Test stop_listening method."""
         mock_listener = Mock()
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener
 
@@ -347,20 +342,20 @@ class TestHotkeyManager:
         mock_listener.stop.assert_called_once()
         assert manager.listener is None
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_stop_listening_no_listener(self, mock_hotkey_class):
         """Test stop_listening when no listener active."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         manager.stop_listening()  # Should not raise
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_join_listener(self, mock_hotkey_class):
         """Test join_listener method."""
         mock_listener = Mock()
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.listener = mock_listener
 
@@ -368,21 +363,21 @@ class TestHotkeyManager:
 
         mock_listener.join.assert_called_once()
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_join_listener_no_listener(self, mock_hotkey_class):
         """Test join_listener when no listener active."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         manager.join_listener()  # Should not raise
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_update_config(self, mock_hotkey_class):
         """Test update_config method."""
         old_trigger_hotkey = Mock()
         mock_hotkey_class.return_value = old_trigger_hotkey
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         # Create new config
@@ -399,7 +394,7 @@ class TestHotkeyManager:
         new_discard_hotkey = Mock()
         mock_hotkey_class.side_effect = [new_trigger_hotkey, new_discard_hotkey]
 
-        with patch("hotkey_manager.keyboard.HotKey.parse") as mock_parse:
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse") as mock_parse:
             mock_parse.side_effect = [
                 ["alt", "r"],  # new trigger key
                 ["del"],  # new discard key
@@ -412,44 +407,44 @@ class TestHotkeyManager:
         assert manager.trigger_hotkey == new_trigger_hotkey
         assert manager.discard_hotkey == new_discard_hotkey
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_get_trigger_key_display(self, mock_hotkey_class):
         """Test get_trigger_key_display method."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         result = manager.get_trigger_key_display()
         assert result == "<ctrl>+<shift>+r"
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_get_discard_key_display(self, mock_hotkey_class):
         """Test get_discard_key_display method."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         result = manager.get_discard_key_display()
         assert result == "<esc>"
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_is_tap_mode_false(self, mock_hotkey_class):
         """Test is_tap_mode returns False for push-to-talk."""
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         assert manager.is_tap_mode() is False
 
-    @patch("hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
     def test_is_tap_mode_true(self, mock_hotkey_class):
         """Test is_tap_mode returns True for tap mode."""
         self.config.recording.mode = "tap-mode"
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
 
         assert manager.is_tap_mode() is True
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_full_lifecycle_push_to_talk(self, mock_listener_class, mock_hotkey_class):
         """Test complete lifecycle in push-to-talk mode."""
         mock_listener = Mock()
@@ -463,7 +458,7 @@ class TestHotkeyManager:
         on_press = Mock()
         on_release = Mock()
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.set_callbacks(
                 on_trigger_press=on_press, on_trigger_release=on_release
@@ -488,8 +483,8 @@ class TestHotkeyManager:
         mock_listener.stop.assert_called_once()
         assert manager.listener is None
 
-    @patch("hotkey_manager.keyboard.HotKey")
-    @patch("hotkey_manager.keyboard.Listener")
+    @patch("whisper_to_me.hotkey_manager.keyboard.HotKey")
+    @patch("whisper_to_me.hotkey_manager.keyboard.Listener")
     def test_full_lifecycle_tap_mode(self, mock_listener_class, mock_hotkey_class):
         """Test complete lifecycle in tap mode."""
         self.config.recording.mode = "tap-mode"
@@ -506,7 +501,7 @@ class TestHotkeyManager:
         on_tap = Mock()
         on_discard = Mock()
 
-        with patch("hotkey_manager.keyboard.HotKey.parse"):
+        with patch("whisper_to_me.hotkey_manager.keyboard.HotKey.parse"):
             manager = HotkeyManager(self.config)
             manager.set_callbacks(on_trigger_tap=on_tap, on_discard_tap=on_discard)
 

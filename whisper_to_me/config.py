@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from pynput import keyboard
-from config_differ import ConfigSectionDiffer
-from config_validator import ConfigValidator, ValidationError
-from logger import get_logger
-from config_constants import (
+from whisper_to_me.config_differ import ConfigSectionDiffer
+from whisper_to_me.config_validator import ConfigValidator, ValidationError
+from whisper_to_me.logger import get_logger
+from whisper_to_me.config_constants import (
     GENERAL_SECTION,
     RECORDING_SECTION,
     UI_SECTION,

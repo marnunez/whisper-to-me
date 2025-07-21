@@ -1,15 +1,10 @@
 """Test logger functionality."""
 
-import sys
-import os
 import io
 import tempfile
 from pathlib import Path
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from logger import Logger, LogLevel, get_logger, setup_logger
+from whisper_to_me.logger import Logger, LogLevel, get_logger, setup_logger
 
 
 class TestLogger:

@@ -1,16 +1,11 @@
 """Test tray icon functionality."""
 
-import os
-import sys
 import tempfile
 import shutil
 from unittest.mock import Mock, patch
 from PIL import Image
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from tray_icon import TrayIcon
+from whisper_to_me.tray_icon import TrayIcon
 
 
 class TestTrayIcon:

@@ -1,12 +1,6 @@
 """Test application state manager functionality."""
 
-import sys
-import os
-
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from application_state_manager import ApplicationStateManager
+from whisper_to_me.application_state_manager import ApplicationStateManager
 
 
 class TestApplicationStateManager:

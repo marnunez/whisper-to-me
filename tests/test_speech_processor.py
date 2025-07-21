@@ -1,21 +1,16 @@
 """Test speech processor functionality."""
 
-import sys
-import os
 import pytest
 import numpy as np
 from unittest.mock import Mock, patch
 
-# Add src to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from speech_processor import SpeechProcessor
+from whisper_to_me.speech_processor import SpeechProcessor
 
 
 class TestSpeechProcessor:
     """Test SpeechProcessor functionality."""
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_init_default_params(self, mock_whisper_model):
         """Test SpeechProcessor initialization with default parameters."""
         mock_model_instance = Mock()
@@ -34,7 +29,7 @@ class TestSpeechProcessor:
             "base", device="cpu", compute_type="float32"
         )
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_init_custom_params(self, mock_whisper_model):
         """Test SpeechProcessor initialization with custom parameters."""
         mock_model_instance = Mock()
@@ -56,7 +51,7 @@ class TestSpeechProcessor:
             compute_type="float16",  # Should use float16 for CUDA
         )
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_init_model_loading_error(self, mock_whisper_model):
         """Test SpeechProcessor initialization with model loading error."""
         mock_whisper_model.side_effect = Exception("Model loading failed")
@@ -66,7 +61,7 @@ class TestSpeechProcessor:
 
         assert "Model loading failed" in str(exc_info.value)
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_load_model_cpu_compute_type(self, mock_whisper_model):
         """Test _load_model with CPU compute type."""
         mock_model_instance = Mock()
@@ -78,7 +73,7 @@ class TestSpeechProcessor:
             "base", device="cpu", compute_type="float32"
         )
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_load_model_cuda_compute_type(self, mock_whisper_model):
         """Test _load_model with CUDA compute type."""
         mock_model_instance = Mock()
@@ -90,7 +85,7 @@ class TestSpeechProcessor:
             "base", device="cuda", compute_type="float16"
         )
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_no_model(self, mock_whisper_model):
         """Test transcribe when model is None."""
         processor = SpeechProcessor.__new__(SpeechProcessor)  # Skip __init__
@@ -101,7 +96,7 @@ class TestSpeechProcessor:
 
         assert "Model not loaded" in str(exc_info.value)
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_empty_audio(self, mock_whisper_model):
         """Test transcribe with empty audio data."""
         mock_model_instance = Mock()
@@ -117,7 +112,7 @@ class TestSpeechProcessor:
         result = processor.transcribe(np.array([]))
         assert result == ("", 0.0, "", 0.0)
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_success(self, mock_whisper_model):
         """Test successful transcription."""
         # Mock model and transcription results
@@ -159,7 +154,7 @@ class TestSpeechProcessor:
         assert call_kwargs["temperature"] == 0.0
         assert call_kwargs["condition_on_previous_text"] is False
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_auto_language(self, mock_whisper_model):
         """Test transcription with auto language detection."""
         mock_model_instance = Mock()
@@ -186,7 +181,7 @@ class TestSpeechProcessor:
         call_kwargs = mock_model_instance.transcribe.call_args[1]
         assert "language" not in call_kwargs
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_with_vad(self, mock_whisper_model):
         """Test transcription with VAD enabled."""
         mock_model_instance = Mock()
@@ -215,7 +210,7 @@ class TestSpeechProcessor:
         assert vad_params["min_silence_duration_ms"] == 2000
         assert vad_params["speech_pad_ms"] == 400
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_without_vad(self, mock_whisper_model):
         """Test transcription with VAD disabled."""
         mock_model_instance = Mock()
@@ -241,7 +236,7 @@ class TestSpeechProcessor:
         assert "vad_filter" not in call_kwargs
         assert "vad_parameters" not in call_kwargs
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_error_handling(self, mock_whisper_model):
         """Test transcription error handling."""
         mock_model_instance = Mock()
@@ -256,7 +251,7 @@ class TestSpeechProcessor:
         # Should return empty result on error
         assert result == ("", 0.0, "", 0.0)
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_with_timestamps_no_model(self, mock_whisper_model):
         """Test transcribe_with_timestamps when model is None."""
         processor = SpeechProcessor.__new__(SpeechProcessor)
@@ -267,7 +262,7 @@ class TestSpeechProcessor:
 
         assert "Model not loaded" in str(exc_info.value)
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_with_timestamps_empty_audio(self, mock_whisper_model):
         """Test transcribe_with_timestamps with empty audio."""
         mock_model_instance = Mock()
@@ -283,7 +278,7 @@ class TestSpeechProcessor:
         result = processor.transcribe_with_timestamps(np.array([]))
         assert result == []
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_with_timestamps_success(self, mock_whisper_model):
         """Test successful transcribe_with_timestamps."""
         mock_model_instance = Mock()
@@ -335,7 +330,7 @@ class TestSpeechProcessor:
         call_kwargs = mock_model_instance.transcribe.call_args[1]
         assert call_kwargs["word_timestamps"] is True
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_with_timestamps_no_words(self, mock_whisper_model):
         """Test transcribe_with_timestamps when segment has no words."""
         mock_model_instance = Mock()
@@ -360,7 +355,7 @@ class TestSpeechProcessor:
 
         assert result == expected
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_transcribe_with_timestamps_error(self, mock_whisper_model):
         """Test transcribe_with_timestamps error handling."""
         mock_model_instance = Mock()
@@ -374,7 +369,7 @@ class TestSpeechProcessor:
 
         assert result == []
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_set_language(self, mock_whisper_model):
         """Test set_language method."""
         mock_model_instance = Mock()
@@ -386,7 +381,7 @@ class TestSpeechProcessor:
         processor.set_language("fr")
         assert processor.language == "fr"
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_get_model_info(self, mock_whisper_model):
         """Test get_model_info method."""
         mock_model_instance = Mock()
@@ -405,7 +400,7 @@ class TestSpeechProcessor:
 
         assert info == expected
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_get_model_info_not_loaded(self, mock_whisper_model):
         """Test get_model_info when model is not loaded."""
         processor = SpeechProcessor.__new__(SpeechProcessor)
@@ -425,7 +420,7 @@ class TestSpeechProcessor:
 
         assert info == expected
 
-    @patch("speech_processor.WhisperModel")
+    @patch("whisper_to_me.speech_processor.WhisperModel")
     def test_multiple_transcriptions(self, mock_whisper_model):
         """Test multiple transcription calls."""
         mock_model_instance = Mock()

@@ -7,14 +7,14 @@ Reduces tight coupling in the main application class.
 
 from typing import Optional, Callable, List, Dict
 
-from audio_recorder import AudioRecorder
-from audio_device_manager import AudioDeviceManager
-from speech_processor import SpeechProcessor
-from keystroke_handler import KeystrokeHandler
-from tray_icon import TrayIcon
-from config import AppConfig, ConfigManager
-from application_state_manager import ApplicationStateManager
-from logger import get_logger
+from whisper_to_me.audio_recorder import AudioRecorder
+from whisper_to_me.audio_device_manager import AudioDeviceManager
+from whisper_to_me.speech_processor import SpeechProcessor
+from whisper_to_me.keystroke_handler import KeystrokeHandler
+from whisper_to_me.tray_icon import TrayIcon
+from whisper_to_me.config import AppConfig, ConfigManager
+from whisper_to_me.application_state_manager import ApplicationStateManager
+from whisper_to_me.logger import get_logger
 
 
 class ComponentFactory:
