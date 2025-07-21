@@ -1,9 +1,8 @@
 """Test hotkey manager functionality."""
 
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
 
-from whisper_to_me.hotkey_manager import HotkeyManager
-from whisper_to_me.config import AppConfig, RecordingConfig
+from whisper_to_me import AppConfig, HotkeyManager, RecordingConfig
 
 
 class TestHotkeyManager:

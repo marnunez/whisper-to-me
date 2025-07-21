@@ -5,9 +5,8 @@ Generic utility for comparing configuration sections and creating profile diffs.
 Eliminates code duplication in configuration management.
 """
 
-from typing import Dict, Any, TypeVar, Generic
 from dataclasses import asdict
-
+from typing import Any, Generic, TypeVar
 
 T = TypeVar("T")
 
@@ -34,7 +33,7 @@ class ConfigDiffer(Generic[T]):
 
     def create_diff(
         self, current_config: T, default_config: dict, section_name: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Create a diff between current config and defaults for a specific section.
 
@@ -64,7 +63,7 @@ class ConfigDiffer(Generic[T]):
 
         return diff
 
-    def apply_diff(self, base_config: T, diff: Dict[str, Any]) -> None:
+    def apply_diff(self, base_config: T, diff: dict[str, Any]) -> None:
         """
         Apply a diff to a configuration object in place.
 
@@ -93,7 +92,7 @@ class ConfigDiffer(Generic[T]):
         diff = self.create_diff(current_config, default_config, section_name)
         return len(diff) > 0
 
-    def merge_configs(self, base_config: T, override_config: Dict[str, Any]) -> T:
+    def merge_configs(self, base_config: T, override_config: dict[str, Any]) -> T:
         """
         Create a new config by merging base with overrides.
 
@@ -133,8 +132,8 @@ class ConfigSectionDiffer:
         self.advanced_differ = ConfigDiffer()
 
     def create_profile_data(
-        self, config, default_config: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        self, config, default_config: dict[str, Any]
+    ) -> dict[str, Any]:
         """
         Create profile data from configuration by diffing against defaults.
 
@@ -172,7 +171,7 @@ class ConfigSectionDiffer:
 
         return profile_data
 
-    def apply_profile_data(self, base_config, profile_data: Dict[str, Any]) -> None:
+    def apply_profile_data(self, base_config, profile_data: dict[str, Any]) -> None:
         """
         Apply profile data to a configuration object.
 

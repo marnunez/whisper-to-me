@@ -5,7 +5,8 @@ Provides classes for building complex tray icon menus with cleaner separation of
 Extracted from the tray icon to reduce complexity and improve maintainability.
 """
 
-from typing import Optional, Callable, List, Dict
+from collections.abc import Callable
+
 import pystray
 
 
@@ -22,7 +23,7 @@ class MenuBuilder:
 
     def __init__(self):
         """Initialize the menu builder."""
-        self.menu_items: List[pystray.MenuItem] = []
+        self.menu_items: list[pystray.MenuItem] = []
 
     def add_header(self, text: str, enabled: bool = False) -> None:
         """
@@ -68,7 +69,7 @@ class MenuBuilder:
         """
         self.menu_items.append(pystray.MenuItem(text, handler))
 
-    def add_submenu(self, text: str, submenu_items: List[pystray.MenuItem]) -> None:
+    def add_submenu(self, text: str, submenu_items: list[pystray.MenuItem]) -> None:
         """
         Add a submenu with nested items.
 
@@ -104,7 +105,7 @@ class ProfileMenuFormatter:
 
     def __init__(
         self,
-        get_profiles: Callable[[], List[str]],
+        get_profiles: Callable[[], list[str]],
         get_current_profile: Callable[[], str],
         profile_switch_handler: Callable[[str], Callable],
     ):
@@ -120,7 +121,7 @@ class ProfileMenuFormatter:
         self.get_current_profile = get_current_profile
         self.profile_switch_handler = profile_switch_handler
 
-    def create_profile_menu_items(self) -> List[pystray.MenuItem]:
+    def create_profile_menu_items(self) -> list[pystray.MenuItem]:
         """
         Create menu items for profile switching.
 
@@ -158,8 +159,8 @@ class DeviceMenuFormatter:
 
     def __init__(
         self,
-        get_devices: Callable[[], List[Dict]],
-        get_current_device: Callable[[], Optional[Dict]],
+        get_devices: Callable[[], list[dict]],
+        get_current_device: Callable[[], dict | None],
         device_switch_handler: Callable[[int], Callable],
     ):
         """
@@ -174,7 +175,7 @@ class DeviceMenuFormatter:
         self.get_current_device = get_current_device
         self.device_switch_handler = device_switch_handler
 
-    def create_device_menu_items(self) -> List[pystray.MenuItem]:
+    def create_device_menu_items(self) -> list[pystray.MenuItem]:
         """
         Create menu items for device switching.
 
@@ -213,7 +214,7 @@ class DeviceMenuFormatter:
 
         return device_items
 
-    def _group_devices_by_hostapi(self, devices: List[Dict]) -> Dict[str, List[Dict]]:
+    def _group_devices_by_hostapi(self, devices: list[dict]) -> dict[str, list[dict]]:
         """Group devices by their host API."""
         grouped = {}
         for device in devices:
@@ -224,8 +225,8 @@ class DeviceMenuFormatter:
         return grouped
 
     def _create_device_items(
-        self, devices: List[Dict], current_device: Optional[Dict], is_nested: bool
-    ) -> List[pystray.MenuItem]:
+        self, devices: list[dict], current_device: dict | None, is_nested: bool
+    ) -> list[pystray.MenuItem]:
         """Create menu items for a list of devices."""
         items = []
         max_name_length = 35 if is_nested else 40
@@ -261,8 +262,8 @@ class TrayMenuBuilder:
     def __init__(self):
         """Initialize the tray menu builder."""
         self.menu_builder = MenuBuilder()
-        self.profile_formatter: Optional[ProfileMenuFormatter] = None
-        self.device_formatter: Optional[DeviceMenuFormatter] = None
+        self.profile_formatter: ProfileMenuFormatter | None = None
+        self.device_formatter: DeviceMenuFormatter | None = None
 
     def set_profile_formatter(self, formatter: ProfileMenuFormatter) -> None:
         """Set the profile menu formatter."""
@@ -273,7 +274,7 @@ class TrayMenuBuilder:
         self.device_formatter = formatter
 
     def build_complete_menu(
-        self, current_profile: str, current_device: Optional[Dict], on_quit: Callable
+        self, current_profile: str, current_device: dict | None, on_quit: Callable
     ) -> pystray.Menu:
         """
         Build the complete tray menu with all sections.

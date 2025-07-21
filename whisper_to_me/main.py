@@ -23,15 +23,16 @@ Examples:
 
 import os
 
-from whisper_to_me.audio_recorder import AudioRecorder
-from whisper_to_me.audio_device_manager import AudioDeviceManager
-from whisper_to_me.speech_processor import SpeechProcessor
-from whisper_to_me.keystroke_handler import KeystrokeHandler
-from whisper_to_me.tray_icon import TrayIcon
-from whisper_to_me.single_instance import SingleInstance
-from whisper_to_me.config import ConfigManager, AppConfig
-from whisper_to_me.logger import get_logger, setup_logger, LogLevel
 from pynput import keyboard
+
+from whisper_to_me.audio_device_manager import AudioDeviceManager
+from whisper_to_me.audio_recorder import AudioRecorder
+from whisper_to_me.config import AppConfig, ConfigManager
+from whisper_to_me.keystroke_handler import KeystrokeHandler
+from whisper_to_me.logger import LogLevel, get_logger, setup_logger
+from whisper_to_me.single_instance import SingleInstance
+from whisper_to_me.speech_processor import SpeechProcessor
+from whisper_to_me.tray_icon import TrayIcon
 
 
 class WhisperToMe:
@@ -368,8 +369,9 @@ class WhisperToMe:
         if audio_data is not None and len(audio_data) > 0:
             # Save audio for debugging if enabled
             if self.debug:
-                import soundfile as sf
                 from datetime import datetime
+
+                import soundfile as sf
 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
                 debug_filename = f"debug_recording_{timestamp}.wav"

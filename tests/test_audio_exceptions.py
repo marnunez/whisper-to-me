@@ -1,15 +1,14 @@
 """Test audio exceptions functionality."""
 
-from whisper_to_me.audio_exceptions import (
-    AudioError,
+from whisper_to_me import (
+    AudioConfigurationError,
+    AudioDeviceInitializationError,
     AudioDeviceNotFoundError,
     AudioDeviceTestError,
-    AudioDeviceInitializationError,
+    AudioError,
     NoAudioDevicesError,
-    AudioRecordingError,
-    AudioConfigurationError,
-    AudioPermissionError,
 )
+from whisper_to_me.audio_exceptions import AudioPermissionError, AudioRecordingError
 
 
 class TestAudioError:
@@ -244,8 +243,8 @@ class TestExceptionHierarchy:
         except AudioError as e:
             assert isinstance(e, AudioDeviceNotFoundError)
             assert "Test Device" in str(e)
-        except Exception:
-            assert False, "Should have been caught by AudioError"
+        except Exception as exc:
+            raise AssertionError("Should have been caught by AudioError") from exc
 
     def test_exception_chaining(self):
         """Test exception chaining with original errors."""

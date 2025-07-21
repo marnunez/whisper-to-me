@@ -1,11 +1,12 @@
 """Test tray icon functionality."""
 
-import tempfile
 import shutil
+import tempfile
 from unittest.mock import Mock, patch
+
 from PIL import Image
 
-from whisper_to_me.tray_icon import TrayIcon
+from whisper_to_me import TrayIcon
 
 
 class TestTrayIcon:

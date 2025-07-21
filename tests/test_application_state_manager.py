@@ -1,6 +1,6 @@
 """Test application state manager functionality."""
 
-from whisper_to_me.application_state_manager import ApplicationStateManager
+from whisper_to_me import ApplicationStateManager
 
 
 class TestApplicationStateManager:

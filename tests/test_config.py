@@ -1,16 +1,16 @@
 """Test profile switching functionality."""
 
-import tempfile
-import shutil
 import os
+import shutil
+import tempfile
 
-from whisper_to_me.config import (
-    ConfigManager,
+from whisper_to_me import (
+    AdvancedConfig,
     AppConfig,
+    ConfigManager,
     GeneralConfig,
     RecordingConfig,
     UIConfig,
-    AdvancedConfig,
 )
 
 

@@ -4,7 +4,8 @@ Configuration Validator Module
 Provides centralized validation logic for configuration values and key combinations.
 """
 
-from typing import Dict, Any, Optional
+from typing import Any
+
 from pynput import keyboard
 
 
@@ -168,8 +169,8 @@ class ConfigValidator:
         return language.lower()
 
     def validate_audio_device_config(
-        self, device_config: Optional[Dict[str, str]]
-    ) -> Optional[Dict[str, str]]:
+        self, device_config: dict[str, str] | None
+    ) -> dict[str, str] | None:
         """
         Validate audio device configuration.
 

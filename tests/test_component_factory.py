@@ -1,23 +1,25 @@
 """Test component factory functionality."""
 
-import pytest
 from unittest.mock import Mock, patch
 
-from whisper_to_me.component_factory import ComponentFactory
-from whisper_to_me.config import (
-    AppConfig,
-    GeneralConfig,
-    RecordingConfig,
-    UIConfig,
+import pytest
+
+from whisper_to_me import (
     AdvancedConfig,
+    AppConfig,
+    ApplicationStateManager,
+    AudioDevice,
+    AudioDeviceManager,
+    AudioRecorder,
+    ComponentFactory,
     ConfigManager,
+    GeneralConfig,
+    KeystrokeHandler,
+    RecordingConfig,
+    SpeechProcessor,
+    TrayIcon,
+    UIConfig,
 )
-from whisper_to_me.audio_device_manager import AudioDeviceManager, AudioDevice
-from whisper_to_me.audio_recorder import AudioRecorder
-from whisper_to_me.speech_processor import SpeechProcessor
-from whisper_to_me.keystroke_handler import KeystrokeHandler
-from whisper_to_me.tray_icon import TrayIcon
-from whisper_to_me.application_state_manager import ApplicationStateManager
 
 
 class TestComponentFactory:

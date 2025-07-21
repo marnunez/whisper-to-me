@@ -1,8 +1,8 @@
 """Test keystroke handler functionality."""
 
-from unittest.mock import Mock, patch, call
+from unittest.mock import Mock, call, patch
 
-from whisper_to_me.keystroke_handler import KeystrokeHandler
+from whisper_to_me import KeystrokeHandler
 
 
 class TestKeystrokeHandler:

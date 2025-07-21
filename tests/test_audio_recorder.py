@@ -1,9 +1,10 @@
 """Test audio recorder functionality."""
 
-import numpy as np
 from unittest.mock import Mock, patch
 
-from whisper_to_me.audio_recorder import AudioRecorder
+import numpy as np
+
+from whisper_to_me import AudioRecorder
 
 
 class TestAudioRecorder:

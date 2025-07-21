@@ -5,9 +5,11 @@ Provides speech-to-text transcription using FasterWhisper with optimized
 parameters for accuracy and performance.
 """
 
-from faster_whisper import WhisperModel
+from typing import Any
+
 import numpy as np
-from typing import Optional, Tuple, List, Dict, Any
+from faster_whisper import WhisperModel
+
 from whisper_to_me.logger import get_logger
 
 
@@ -26,7 +28,7 @@ class SpeechProcessor:
         self,
         model_size: str = "base",
         device: str = "cpu",
-        language: Optional[str] = None,
+        language: str | None = None,
         vad_filter: bool = True,
     ):
         """
@@ -42,7 +44,7 @@ class SpeechProcessor:
         self.device = device
         self.language = language
         self.vad_filter = vad_filter
-        self.model: Optional[WhisperModel] = None
+        self.model: WhisperModel | None = None
         self.logger = get_logger()
 
         self._load_model()
@@ -62,7 +64,7 @@ class SpeechProcessor:
             self.logger.error(f"Error loading model: {e}", "model")
             raise
 
-    def transcribe(self, audio_data: np.ndarray) -> Tuple[str, float, str, float]:
+    def transcribe(self, audio_data: np.ndarray) -> tuple[str, float, str, float]:
         if self.model is None:
             raise RuntimeError("Model not loaded")
 
@@ -85,10 +87,10 @@ class SpeechProcessor:
                 transcribe_params.update(
                     {
                         "vad_filter": True,
-                        "vad_parameters": dict(
-                            min_silence_duration_ms=2000,  # Allow longer pauses (2 seconds)
-                            speech_pad_ms=400,  # Keep more audio around speech
-                        ),
+                        "vad_parameters": {
+                            "min_silence_duration_ms": 2000,  # Allow longer pauses (2 seconds)
+                            "speech_pad_ms": 400,  # Keep more audio around speech
+                        },
                     }
                 )
 
@@ -111,7 +113,7 @@ class SpeechProcessor:
 
     def transcribe_with_timestamps(
         self, audio_data: np.ndarray
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         if self.model is None:
             raise RuntimeError("Model not loaded")
 
@@ -167,7 +169,7 @@ class SpeechProcessor:
         self.language = language
         self.logger.info(f"Language set to: {language}", "language")
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info(self) -> dict[str, Any]:
         return {
             "model_size": self.model_size,
             "device": self.device,

@@ -7,9 +7,9 @@ throughout the codebase with structured, configurable logging.
 
 import sys
 from datetime import datetime
-from typing import Optional, TextIO
 from enum import Enum
 from pathlib import Path
+from typing import TextIO
 
 
 class LogLevel(Enum):
@@ -59,8 +59,8 @@ class Logger:
     def __init__(
         self,
         min_level: LogLevel = LogLevel.INFO,
-        output_stream: Optional[TextIO] = None,
-        log_file: Optional[Path] = None,
+        output_stream: TextIO | None = None,
+        log_file: Path | None = None,
         include_timestamps: bool = False,
         include_categories: bool = True,
     ):
@@ -88,8 +88,8 @@ class Logger:
         self,
         level: LogLevel,
         message: str,
-        category: Optional[str] = None,
-        icon: Optional[str] = None,
+        category: str | None = None,
+        icon: str | None = None,
     ) -> str:
         """Format a log message with optional timestamp and category."""
         parts = []
@@ -135,8 +135,8 @@ class Logger:
         self,
         level: LogLevel,
         message: str,
-        category: Optional[str] = None,
-        icon: Optional[str] = None,
+        category: str | None = None,
+        icon: str | None = None,
     ) -> None:
         """
         Log a message at the specified level.
@@ -158,37 +158,37 @@ class Logger:
         self._write_message(formatted_message)
 
     def debug(
-        self, message: str, category: Optional[str] = None, icon: str = "debug"
+        self, message: str, category: str | None = None, icon: str = "debug"
     ) -> None:
         """Log a debug message."""
         self.log(LogLevel.DEBUG, message, category, icon)
 
     def info(
-        self, message: str, category: Optional[str] = None, icon: str = "info"
+        self, message: str, category: str | None = None, icon: str = "info"
     ) -> None:
         """Log an info message."""
         self.log(LogLevel.INFO, message, category, icon)
 
     def warning(
-        self, message: str, category: Optional[str] = None, icon: str = "warning"
+        self, message: str, category: str | None = None, icon: str = "warning"
     ) -> None:
         """Log a warning message."""
         self.log(LogLevel.WARNING, message, category, icon)
 
     def error(
-        self, message: str, category: Optional[str] = None, icon: str = "error"
+        self, message: str, category: str | None = None, icon: str = "error"
     ) -> None:
         """Log an error message."""
         self.log(LogLevel.ERROR, message, category, icon)
 
     def critical(
-        self, message: str, category: Optional[str] = None, icon: str = "error"
+        self, message: str, category: str | None = None, icon: str = "error"
     ) -> None:
         """Log a critical message."""
         self.log(LogLevel.CRITICAL, message, category, icon)
 
     # Specialized logging methods for common use cases
-    def success(self, message: str, category: Optional[str] = None) -> None:
+    def success(self, message: str, category: str | None = None) -> None:
         """Log a success message."""
         self.log(LogLevel.INFO, message, category, "success")
 
@@ -204,8 +204,8 @@ class Logger:
     def transcription_completed(
         self,
         text: str,
-        language: Optional[str] = None,
-        confidence: Optional[float] = None,
+        language: str | None = None,
+        confidence: float | None = None,
     ) -> None:
         """Log transcription completion."""
         message = "Transcription completed"
@@ -254,7 +254,7 @@ class Logger:
         self.log(LogLevel.INFO, "Goodbye!", "app")
 
     def hotkey_info(
-        self, trigger_key: str, mode: str, discard_key: Optional[str] = None
+        self, trigger_key: str, mode: str, discard_key: str | None = None
     ) -> None:
         """Log hotkey configuration."""
         if mode == "tap-mode":
@@ -268,7 +268,7 @@ class Logger:
 
 
 # Global logger instance
-_global_logger: Optional[Logger] = None
+_global_logger: Logger | None = None
 
 
 def get_logger() -> Logger:
@@ -281,8 +281,8 @@ def get_logger() -> Logger:
 
 def setup_logger(
     min_level: LogLevel = LogLevel.INFO,
-    output_stream: Optional[TextIO] = None,
-    log_file: Optional[Path] = None,
+    output_stream: TextIO | None = None,
+    log_file: Path | None = None,
     include_timestamps: bool = False,
     include_categories: bool = True,
 ) -> Logger:

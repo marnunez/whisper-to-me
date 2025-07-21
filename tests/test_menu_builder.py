@@ -2,10 +2,10 @@
 
 from unittest.mock import Mock, patch
 
-from whisper_to_me.menu_builder import (
+from whisper_to_me import (
+    DeviceMenuFormatter,
     MenuBuilder,
     ProfileMenuFormatter,
-    DeviceMenuFormatter,
     TrayMenuBuilder,
 )
 
@@ -228,7 +228,7 @@ class TestProfileMenuFormatter:
         assert len(actual_calls) == 3
 
         # Check display names have correct markers
-        for i, call in enumerate(actual_calls):
+        for _i, call in enumerate(actual_calls):
             args, kwargs = call
             display_name = args[0]
             if "work" in display_name:

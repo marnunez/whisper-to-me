@@ -6,13 +6,15 @@ selection, persistence, and fallback handling.
 """
 
 from dataclasses import dataclass
-from typing import Optional, List, Dict, Any
+from typing import Any
+
 import sounddevice as sd
+
 from whisper_to_me.audio_exceptions import (
-    AudioDeviceTestError,
-    AudioDeviceInitializationError,
-    NoAudioDevicesError,
     AudioConfigurationError,
+    AudioDeviceInitializationError,
+    AudioDeviceTestError,
+    NoAudioDevicesError,
 )
 from whisper_to_me.logger import get_logger
 
@@ -27,13 +29,13 @@ class AudioDevice:
     channels: int
     sample_rate: float
 
-    def to_config(self) -> Dict[str, str]:
+    def to_config(self) -> dict[str, str]:
         """Convert to configuration format (minimal data for persistence)."""
         return {"name": self.name, "hostapi_name": self.hostapi_name}
 
     @classmethod
     def from_config(
-        cls, config: Dict[str, str], device_info: Dict[str, Any]
+        cls, config: dict[str, str], device_info: dict[str, Any]
     ) -> "AudioDevice":
         """Create AudioDevice from config dict and full device info."""
         return cls(
@@ -44,7 +46,7 @@ class AudioDevice:
             sample_rate=device_info["default_samplerate"],
         )
 
-    def matches_config(self, config: Optional[Dict[str, str]]) -> bool:
+    def matches_config(self, config: dict[str, str] | None) -> bool:
         """Check if this device matches a configuration dict."""
         if not config:
             return False
@@ -62,7 +64,7 @@ class AudioDevice:
 class AudioDeviceManager:
     """Manages audio device enumeration, selection, and persistence."""
 
-    def __init__(self, device_config: Optional[Dict[str, str]] = None):
+    def __init__(self, device_config: dict[str, str] | None = None):
         """
         Initialize the audio device manager.
 
@@ -70,11 +72,11 @@ class AudioDeviceManager:
             device_config: Optional device configuration dict with 'name' and 'hostapi_name'
         """
         self._device_config = device_config
-        self._current_device: Optional[AudioDevice] = None
-        self._devices_cache: Optional[List[AudioDevice]] = None
+        self._current_device: AudioDevice | None = None
+        self._devices_cache: list[AudioDevice] | None = None
         self.logger = get_logger()
 
-    def get_current_device(self) -> Optional[AudioDevice]:
+    def get_current_device(self) -> AudioDevice | None:
         """
         Get the currently selected audio device.
 
@@ -85,7 +87,7 @@ class AudioDeviceManager:
             self._resolve_device()
         return self._current_device
 
-    def get_current_device_id(self) -> Optional[int]:
+    def get_current_device_id(self) -> int | None:
         """
         Get the ID of the current device for AudioRecorder.
 
@@ -95,7 +97,7 @@ class AudioDeviceManager:
         device = self.get_current_device()
         return device.id if device else None
 
-    def list_devices(self, refresh: bool = False) -> List[AudioDevice]:
+    def list_devices(self, refresh: bool = False) -> list[AudioDevice]:
         """
         List all available audio input devices.
 
@@ -129,13 +131,13 @@ class AudioDeviceManager:
                 device.name, device.id, "input_settings", e
             ) from e
 
-    def get_device_config(self) -> Optional[Dict[str, str]]:
+    def get_device_config(self) -> dict[str, str] | None:
         """Get the current device configuration for persistence."""
         if self._current_device:
             return self._current_device.to_config()
         return self._device_config
 
-    def get_default_device(self) -> Optional[AudioDevice]:
+    def get_default_device(self) -> AudioDevice | None:
         """Get information about the default input device."""
         try:
             default_id = sd.default.device[0]
@@ -208,7 +210,7 @@ class AudioDeviceManager:
         self._device_config = None
         self._current_device = None
 
-    def _enumerate_devices(self) -> List[AudioDevice]:
+    def _enumerate_devices(self) -> list[AudioDevice]:
         """
         Enumerate all audio input devices.
 
@@ -257,7 +259,7 @@ class AudioDeviceManager:
 
         return audio_devices
 
-    def group_devices_by_hostapi(self) -> Dict[str, List[AudioDevice]]:
+    def group_devices_by_hostapi(self) -> dict[str, list[AudioDevice]]:
         """
         Group devices by their host API for organized display.
 

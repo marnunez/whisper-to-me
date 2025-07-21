@@ -5,13 +5,12 @@ Custom exceptions for audio device management and recording operations.
 Provides specific error types for better error handling and user feedback.
 """
 
-from typing import Optional
 
 
 class AudioError(Exception):
     """Base exception for all audio-related errors."""
 
-    def __init__(self, message: str, device_info: Optional[dict] = None):
+    def __init__(self, message: str, device_info: dict | None = None):
         """
         Initialize audio error.
 
@@ -27,7 +26,7 @@ class AudioError(Exception):
 class AudioDeviceNotFoundError(AudioError):
     """Raised when a specified audio device cannot be found."""
 
-    def __init__(self, device_name: str, device_id: Optional[int] = None):
+    def __init__(self, device_name: str, device_id: int | None = None):
         """
         Initialize device not found error.
 
@@ -118,7 +117,7 @@ class AudioRecordingError(AudioError):
 class AudioConfigurationError(AudioError):
     """Raised when audio device configuration is invalid."""
 
-    def __init__(self, config_issue: str, suggestion: Optional[str] = None):
+    def __init__(self, config_issue: str, suggestion: str | None = None):
         """
         Initialize configuration error.
 

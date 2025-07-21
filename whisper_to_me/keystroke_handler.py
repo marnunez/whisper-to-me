@@ -5,8 +5,9 @@ Provides keyboard simulation functionality for typing transcribed text
 into any application.
 """
 
-from pynput import keyboard
 import time
+
+from pynput import keyboard
 
 
 class KeystrokeHandler:

@@ -1,10 +1,11 @@
 """Test speech processor functionality."""
 
-import pytest
-import numpy as np
 from unittest.mock import Mock, patch
 
-from whisper_to_me.speech_processor import SpeechProcessor
+import numpy as np
+import pytest
+
+from whisper_to_me import SpeechProcessor
 
 
 class TestSpeechProcessor:

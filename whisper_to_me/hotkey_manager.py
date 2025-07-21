@@ -5,8 +5,10 @@ Handles global hotkey detection and management with support for different record
 Extracted from the main application to improve separation of concerns.
 """
 
-from typing import Callable, Optional
+from collections.abc import Callable
+
 from pynput import keyboard
+
 from whisper_to_me.config import AppConfig
 
 
@@ -29,15 +31,15 @@ class HotkeyManager:
             config: Application configuration containing key mappings
         """
         self.config = config
-        self.listener: Optional[keyboard.Listener] = None
-        self.trigger_hotkey: Optional[keyboard.HotKey] = None
-        self.discard_hotkey: Optional[keyboard.HotKey] = None
+        self.listener: keyboard.Listener | None = None
+        self.trigger_hotkey: keyboard.HotKey | None = None
+        self.discard_hotkey: keyboard.HotKey | None = None
 
         # Callbacks
-        self.on_trigger_press: Optional[Callable] = None
-        self.on_trigger_tap: Optional[Callable] = None
-        self.on_discard_tap: Optional[Callable] = None
-        self.on_trigger_release: Optional[Callable] = None
+        self.on_trigger_press: Callable | None = None
+        self.on_trigger_tap: Callable | None = None
+        self.on_discard_tap: Callable | None = None
+        self.on_trigger_release: Callable | None = None
 
         self._setup_hotkeys()
 
@@ -63,10 +65,10 @@ class HotkeyManager:
 
     def set_callbacks(
         self,
-        on_trigger_press: Optional[Callable] = None,
-        on_trigger_tap: Optional[Callable] = None,
-        on_discard_tap: Optional[Callable] = None,
-        on_trigger_release: Optional[Callable] = None,
+        on_trigger_press: Callable | None = None,
+        on_trigger_tap: Callable | None = None,
+        on_discard_tap: Callable | None = None,
+        on_trigger_release: Callable | None = None,
     ) -> None:
         """
         Set callback functions for hotkey events.

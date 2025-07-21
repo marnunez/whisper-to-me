@@ -6,27 +6,29 @@ Whisper-to-Me application.
 """
 
 import tomllib
-import tomli_w
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, Any, Optional, List
-from dataclasses import dataclass, asdict
+from typing import Any
+
+import tomli_w
 from pynput import keyboard
+
+from whisper_to_me.config_constants import (
+    ADVANCED_SECTION,
+    DEFAULT_PROFILE,
+    GENERAL_SECTION,
+    PROFILES_SECTION,
+    RECORDING_SECTION,
+    REQUIRED_SECTIONS,
+    UI_SECTION,
+    DeviceTypes,
+    Languages,
+    ModelSizes,
+    RecordingModes,
+)
 from whisper_to_me.config_differ import ConfigSectionDiffer
 from whisper_to_me.config_validator import ConfigValidator, ValidationError
 from whisper_to_me.logger import get_logger
-from whisper_to_me.config_constants import (
-    GENERAL_SECTION,
-    RECORDING_SECTION,
-    UI_SECTION,
-    ADVANCED_SECTION,
-    PROFILES_SECTION,
-    REQUIRED_SECTIONS,
-    DEFAULT_PROFILE,
-    RecordingModes,
-    DeviceTypes,
-    ModelSizes,
-    Languages,
-)
 
 
 @dataclass
@@ -36,7 +38,7 @@ class RecordingConfig:
     mode: str = RecordingModes.PUSH_TO_TALK
     trigger_key: str = "<scroll_lock>"
     discard_key: str = "<esc>"
-    audio_device: Optional[Dict[str, str]] = None  # {"name": str, "hostapi_name": str}
+    audio_device: dict[str, str] | None = None  # {"name": str, "hostapi_name": str}
 
 
 @dataclass
@@ -75,7 +77,7 @@ class AppConfig:
     recording: RecordingConfig
     ui: UIConfig
     advanced: AdvancedConfig
-    profiles: Dict[str, Dict[str, Any]]
+    profiles: dict[str, dict[str, Any]]
 
     def __post_init__(self):
         """Ensure profiles dict exists."""
@@ -99,7 +101,7 @@ class ConfigManager:
         self.config_dir = Path.home() / ".config" / "whisper-to-me"
         self.config_file = self.config_dir / "config.toml"
         self.current_profile = DEFAULT_PROFILE
-        self._config: Optional[AppConfig] = None
+        self._config: AppConfig | None = None
         self._config_differ = ConfigSectionDiffer()
         self._validator = ConfigValidator()
         self.logger = get_logger()
@@ -109,7 +111,7 @@ class ConfigManager:
         """Create config directory if it doesn't exist."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
-    def _get_default_config(self) -> Dict[str, Any]:
+    def _get_default_config(self) -> dict[str, Any]:
         """Get default configuration structure."""
         return {
             GENERAL_SECTION: {
@@ -156,7 +158,7 @@ class ConfigManager:
 
         self._save_config_to_file(default_config)
 
-    def _save_config_to_file(self, config_dict: Dict[str, Any]) -> None:
+    def _save_config_to_file(self, config_dict: dict[str, Any]) -> None:
         """Save configuration dictionary to TOML file."""
 
         # Remove None values for TOML compatibility
@@ -175,7 +177,7 @@ class ConfigManager:
         with open(self.config_file, "wb") as f:
             tomli_w.dump(sanitized_config, f)
 
-    def _load_config_from_file(self) -> Dict[str, Any]:
+    def _load_config_from_file(self) -> dict[str, Any]:
         """Load configuration from TOML file."""
         if not self.config_file.exists():
             self._create_default_config()
@@ -188,7 +190,7 @@ class ConfigManager:
             self.logger.info("Using default configuration", "config")
             return self._get_default_config()
 
-    def _validate_config(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_config(self, config_dict: dict[str, Any]) -> dict[str, Any]:
         """Validate and sanitize configuration."""
         default = self._get_default_config()
 
@@ -240,7 +242,7 @@ class ConfigManager:
 
         self._save_config_to_file(config_dict)
 
-    def get_profile_names(self) -> List[str]:
+    def get_profile_names(self) -> list[str]:
         """Get list of available profile names."""
         if self._config is None:
             self.load_config()

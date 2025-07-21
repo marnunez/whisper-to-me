@@ -5,11 +5,12 @@ Handles profile switching logic and configuration updates for different use case
 Extracted from the main application to improve separation of concerns.
 """
 
-from typing import Callable, Optional
-from whisper_to_me.config import ConfigManager, AppConfig
-from whisper_to_me.speech_processor import SpeechProcessor
+from collections.abc import Callable
+
 from whisper_to_me.component_factory import ComponentFactory
+from whisper_to_me.config import AppConfig, ConfigManager
 from whisper_to_me.logger import get_logger
+from whisper_to_me.speech_processor import SpeechProcessor
 
 
 class ProfileManager:
@@ -27,7 +28,7 @@ class ProfileManager:
         self,
         config_manager: ConfigManager,
         component_factory: ComponentFactory,
-        on_config_changed: Optional[Callable[[AppConfig], None]] = None,
+        on_config_changed: Callable[[AppConfig], None] | None = None,
     ):
         """
         Initialize the profile manager.
@@ -40,7 +41,7 @@ class ProfileManager:
         self.config_manager = config_manager
         self.component_factory = component_factory
         self.on_config_changed = on_config_changed
-        self.current_config: Optional[AppConfig] = None
+        self.current_config: AppConfig | None = None
         self.logger = get_logger()
 
     def switch_profile(self, profile_name: str) -> AppConfig:
@@ -195,7 +196,7 @@ class ProfileManager:
             self.logger.error(f"Invalid profile configuration: {e}", "profile")
             return False
 
-    def get_profile_summary(self, profile_name: str) -> Optional[dict]:
+    def get_profile_summary(self, profile_name: str) -> dict | None:
         """
         Get a summary of profile settings for display.
 

@@ -5,9 +5,10 @@ Provides real-time audio recording functionality with optimized latency
 for speech recognition applications.
 """
 
-import sounddevice as sd
+
 import numpy as np
-from typing import Optional, List
+import sounddevice as sd
+
 from whisper_to_me.logger import get_logger
 
 
@@ -23,11 +24,11 @@ class AudioRecorder:
 
     def __init__(
         self,
-        sample_rate: Optional[int] = None,
+        sample_rate: int | None = None,
         channels: int = 1,
         chunk_size: int = 512,
-        device_id: Optional[int] = None,
-        device_name: Optional[str] = None,
+        device_id: int | None = None,
+        device_name: str | None = None,
     ):
         """
         Initialize the audio recorder.
@@ -49,12 +50,12 @@ class AudioRecorder:
         self.sample_rate = self._get_best_sample_rate(sample_rate)
 
         self.is_recording = False
-        self.audio_data: List[np.ndarray] = []
-        self.stream: Optional[sd.InputStream] = None
+        self.audio_data: list[np.ndarray] = []
+        self.stream: sd.InputStream | None = None
 
         self._initialize_stream()
 
-    def _get_best_sample_rate(self, requested_rate: Optional[int]) -> int:
+    def _get_best_sample_rate(self, requested_rate: int | None) -> int:
         """
         Get the best sample rate for the device.
 
@@ -152,7 +153,7 @@ class AudioRecorder:
         self.audio_data = []
         self.logger.recording_started()
 
-    def stop_recording(self) -> Optional[np.ndarray]:
+    def stop_recording(self) -> np.ndarray | None:
         if not self.is_recording:
             return None
 

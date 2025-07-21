@@ -5,16 +5,16 @@ Handles creation and configuration of application components with dependency inj
 Reduces tight coupling in the main application class.
 """
 
-from typing import Optional, Callable, List, Dict
+from collections.abc import Callable
 
-from whisper_to_me.audio_recorder import AudioRecorder
-from whisper_to_me.audio_device_manager import AudioDeviceManager
-from whisper_to_me.speech_processor import SpeechProcessor
-from whisper_to_me.keystroke_handler import KeystrokeHandler
-from whisper_to_me.tray_icon import TrayIcon
-from whisper_to_me.config import AppConfig, ConfigManager
 from whisper_to_me.application_state_manager import ApplicationStateManager
+from whisper_to_me.audio_device_manager import AudioDeviceManager
+from whisper_to_me.audio_recorder import AudioRecorder
+from whisper_to_me.config import AppConfig, ConfigManager
+from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import get_logger
+from whisper_to_me.speech_processor import SpeechProcessor
+from whisper_to_me.tray_icon import TrayIcon
 
 
 class ComponentFactory:
@@ -129,9 +129,9 @@ class ComponentFactory:
         on_quit: Callable,
         on_profile_change: Callable[[str], None],
         on_device_change: Callable[[int], None],
-        get_devices: Callable[[], List[Dict]],
-        get_current_device: Callable[[], Optional[Dict]],
-    ) -> Optional[TrayIcon]:
+        get_devices: Callable[[], list[dict]],
+        get_current_device: Callable[[], dict | None],
+    ) -> TrayIcon | None:
         """
         Create and configure tray icon if enabled.
 
@@ -169,7 +169,7 @@ class ComponentFactory:
 
     def recreate_speech_processor(
         self, old_config: AppConfig, new_config: AppConfig
-    ) -> Optional[SpeechProcessor]:
+    ) -> SpeechProcessor | None:
         """
         Recreate speech processor if configuration changed.
 

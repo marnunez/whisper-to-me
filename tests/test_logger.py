@@ -122,7 +122,7 @@ class TestLogger:
 
             # Check file output
             assert log_file.exists()
-            with open(log_file, "r", encoding="utf-8") as f:
+            with open(log_file, encoding="utf-8") as f:
                 file_content = f.read()
             assert "Test message" in file_content
 

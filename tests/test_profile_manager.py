@@ -1,17 +1,18 @@
 """Test profile manager functionality."""
 
-import pytest
 from unittest.mock import Mock, patch
 
-from whisper_to_me.profile_manager import ProfileManager
-from whisper_to_me.config import (
+import pytest
+
+from whisper_to_me import (
+    AdvancedConfig,
     AppConfig,
     GeneralConfig,
+    ProfileManager,
     RecordingConfig,
+    SpeechProcessor,
     UIConfig,
-    AdvancedConfig,
 )
-from whisper_to_me.speech_processor import SpeechProcessor
 
 
 class TestProfileManager:

@@ -1,9 +1,9 @@
 """Test key combination parsing functionality using pynput HotKey.parse."""
 
 import pytest
-
-from whisper_to_me.config import ConfigManager
 from pynput import keyboard
+
+from whisper_to_me import ConfigManager
 
 
 class TestKeyCombinations:

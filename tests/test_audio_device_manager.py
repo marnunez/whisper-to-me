@@ -1,14 +1,16 @@
 """Test audio device manager functionality."""
 
-import pytest
 from unittest.mock import patch
 
-from whisper_to_me.audio_device_manager import AudioDeviceManager, AudioDevice
-from whisper_to_me.audio_exceptions import (
-    AudioDeviceTestError,
-    AudioDeviceInitializationError,
-    NoAudioDevicesError,
+import pytest
+
+from whisper_to_me import (
     AudioConfigurationError,
+    AudioDevice,
+    AudioDeviceInitializationError,
+    AudioDeviceManager,
+    AudioDeviceTestError,
+    NoAudioDevicesError,
 )
 
 

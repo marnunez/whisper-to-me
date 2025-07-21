@@ -5,11 +5,13 @@ Provides a system tray icon interface for Whisper-to-Me with status indicators
 and menu controls.
 """
 
+import os
+import threading
+from collections.abc import Callable
+
 import pystray
 from PIL import Image, ImageDraw
-import threading
-import os
-from typing import Optional, Callable, List
+
 from whisper_to_me.logger import get_logger
 
 
@@ -25,13 +27,13 @@ class TrayIcon:
 
     def __init__(
         self,
-        on_quit: Optional[Callable] = None,
-        on_profile_change: Optional[Callable[[str], None]] = None,
-        get_profiles: Optional[Callable[[], List[str]]] = None,
-        get_current_profile: Optional[Callable[[], str]] = None,
-        on_device_change: Optional[Callable[[int], None]] = None,
-        get_devices: Optional[Callable[[], List[dict]]] = None,
-        get_current_device: Optional[Callable[[], Optional[dict]]] = None,
+        on_quit: Callable | None = None,
+        on_profile_change: Callable[[str], None] | None = None,
+        get_profiles: Callable[[], list[str]] | None = None,
+        get_current_profile: Callable[[], str] | None = None,
+        on_device_change: Callable[[int], None] | None = None,
+        get_devices: Callable[[], list[dict]] | None = None,
+        get_current_device: Callable[[], dict | None] | None = None,
     ):
         """
         Initialize the tray icon.
@@ -45,7 +47,7 @@ class TrayIcon:
             get_devices: Function to get list of available audio devices
             get_current_device: Function to get current audio device info
         """
-        self.icon: Optional[pystray.Icon] = None
+        self.icon: pystray.Icon | None = None
         self.on_quit_callback = on_quit
         self.on_profile_change_callback = on_profile_change
         self.get_profiles_callback = get_profiles

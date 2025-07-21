@@ -4,11 +4,12 @@ Single Instance Module
 Ensures only one instance of Whisper-to-Me is running at a time.
 """
 
+import atexit
+import fcntl
 import os
 import sys
-import fcntl
-import atexit
 from pathlib import Path
+
 from whisper_to_me.logger import get_logger
 
 
@@ -54,7 +55,7 @@ class SingleInstance:
 
             return True
 
-        except IOError:
+        except OSError:
             # Lock is held by another instance
             if self.lockfile:
                 self.lockfile.close()

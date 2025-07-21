@@ -1,12 +1,12 @@
 """Test single instance functionality."""
 
+import os
 import subprocess
 import sys
 import time
 from pathlib import Path
-import os
 
-from whisper_to_me.single_instance import SingleInstance
+from whisper_to_me import SingleInstance
 
 
 class TestSingleInstance:
@@ -69,7 +69,7 @@ class TestSingleInstance:
 import sys
 import time
 sys.path.insert(0, '{src_path}')
-from whisper_to_me.single_instance import SingleInstance
+from whisper_to_me import SingleInstance
 
 with SingleInstance():
     time.sleep(1)  # Hold lock for 1 second
