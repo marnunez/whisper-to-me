@@ -7,7 +7,8 @@ for speech recognition applications.
 
 import sounddevice as sd
 import numpy as np
-from typing import Optional, List, Dict, Any
+from typing import Optional, List
+from logger import get_logger
 
 
 class AudioRecorder:
@@ -26,6 +27,7 @@ class AudioRecorder:
         channels: int = 1,
         chunk_size: int = 512,
         device_id: Optional[int] = None,
+        device_name: Optional[str] = None,
     ):
         """
         Initialize the audio recorder.
@@ -35,10 +37,13 @@ class AudioRecorder:
             channels: Number of audio channels (1 for mono)
             chunk_size: Audio buffer size (smaller = lower latency)
             device_id: Audio input device ID (None for default)
+            device_name: Device name for display (optional)
         """
         self.device_id = device_id
+        self.device_name = device_name
         self.channels = channels
         self.chunk_size = chunk_size
+        self.logger = get_logger()
 
         # Get the best sample rate for this device
         self.sample_rate = self._get_best_sample_rate(sample_rate)
@@ -85,17 +90,21 @@ class AudioRecorder:
             for rate in preferred_rates:
                 try:
                     sd.check_input_settings(device=self.device_id, samplerate=rate)
-                    print(f"Using sample rate: {rate} Hz")
+                    self.logger.debug(f"Using sample rate: {rate} Hz", "audio")
                     return rate
                 except Exception:
                     continue
 
             # Fallback to device default if nothing else works
-            print(f"Using device default sample rate: {device_rate} Hz")
+            self.logger.debug(
+                f"Using device default sample rate: {device_rate} Hz", "audio"
+            )
             return device_rate
 
         except Exception as e:
-            print(f"Could not determine device sample rate, using 16000 Hz: {e}")
+            self.logger.warning(
+                f"Could not determine device sample rate, using 16000 Hz: {e}", "audio"
+            )
             return 16000
 
     def _initialize_stream(self) -> None:
@@ -112,23 +121,26 @@ class AudioRecorder:
         # Start the stream immediately but don't record yet
         self.stream.start()
 
-        # Get actual device name for better user feedback
-        if self.device_id is None:
-            device_name = "default"
+        # Get device name for user feedback
+        if self.device_name:
+            device_display = self.device_name
+        elif self.device_id is None:
+            device_display = "default"
         else:
             try:
                 device_info = sd.query_devices(self.device_id)
-                device_name = device_info["name"]
+                device_display = device_info["name"]
             except Exception:
-                device_name = f"device {self.device_id}"
+                device_display = f"device {self.device_id}"
 
-        print(
-            f"Audio stream started and ready for instant recording using {device_name}"
+        self.logger.info(
+            f"Audio stream started and ready for instant recording using {device_display}",
+            "audio",
         )
 
     def _audio_callback(self, indata, frames, time, status):
         if status:
-            print(f"Audio callback status: {status}")
+            self.logger.debug(f"Audio callback status: {status}", "audio")
         if self.is_recording:
             self.audio_data.append(indata.copy())
 
@@ -138,7 +150,7 @@ class AudioRecorder:
 
         self.is_recording = True
         self.audio_data = []
-        print("🎤 Recording started...")
+        self.logger.recording_started()
 
     def stop_recording(self) -> Optional[np.ndarray]:
         if not self.is_recording:
@@ -147,7 +159,7 @@ class AudioRecorder:
         self.is_recording = False
 
         if not self.audio_data:
-            print("No audio data recorded")
+            self.logger.warning("No audio data recorded", "audio")
             return None
 
         audio_array = np.concatenate(self.audio_data, axis=0)
@@ -156,8 +168,8 @@ class AudioRecorder:
         # Clear audio data to free memory
         self.audio_data.clear()
 
-        print(
-            f"🔄 Recording stopped. Captured {len(audio_array)} samples ({len(audio_array) / self.sample_rate:.2f}s)"
+        self.logger.recording_stopped(
+            len(audio_array) / self.sample_rate, len(audio_array)
         )
         return audio_array
 
@@ -215,120 +227,3 @@ class AudioRecorder:
 
     def is_recording_active(self) -> bool:
         return self.is_recording
-
-    @staticmethod
-    def list_input_devices() -> List[Dict[str, Any]]:
-        """
-        List all available audio input devices.
-
-        Returns:
-            List of dictionaries containing device information:
-            - id: Device ID number
-            - name: Device name
-            - channels: Maximum input channels
-            - default_samplerate: Default sample rate
-            - hostapi: Host API index
-            - hostapi_name: Host API name (e.g., 'ALSA', 'PulseAudio')
-        """
-        devices = sd.query_devices()
-        hostapis = sd.query_hostapis()
-        input_devices = []
-
-        for i, device in enumerate(devices):
-            if device["max_input_channels"] > 0:
-                hostapi_index = device["hostapi"]
-                hostapi_name = (
-                    hostapis[hostapi_index]["name"]
-                    if hostapi_index < len(hostapis)
-                    else "Unknown"
-                )
-
-                input_devices.append(
-                    {
-                        "id": i,
-                        "name": device["name"],
-                        "channels": device["max_input_channels"],
-                        "default_samplerate": device["default_samplerate"],
-                        "hostapi": hostapi_index,
-                        "hostapi_name": hostapi_name,
-                    }
-                )
-
-        return input_devices
-
-    @staticmethod
-    def get_default_input_device() -> Optional[Dict[str, Any]]:
-        """
-        Get information about the default input device.
-
-        Returns:
-            Dictionary with default device info, or None if no default device
-        """
-        default_device = sd.default.device[0]
-        if default_device is None:
-            return None
-
-        device_info = sd.query_devices(default_device)
-        hostapis = sd.query_hostapis()
-        hostapi_index = device_info["hostapi"]
-        hostapi_name = (
-            hostapis[hostapi_index]["name"]
-            if hostapi_index < len(hostapis)
-            else "Unknown"
-        )
-
-        return {
-            "id": default_device,
-            "name": device_info["name"],
-            "channels": device_info["max_input_channels"],
-            "default_samplerate": device_info["default_samplerate"],
-            "hostapi": hostapi_index,
-            "hostapi_name": hostapi_name,
-        }
-
-    @staticmethod
-    def find_device_by_config(
-        device_config: Optional[Dict[str, str]],
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Find an audio device by its stable configuration (name + hostapi).
-
-        Args:
-            device_config: Dict with 'name' and optionally 'hostapi_name', or None
-
-        Returns:
-            Device dictionary if found, None otherwise
-        """
-        if not device_config or not device_config.get("name"):
-            return None
-
-        devices = AudioRecorder.list_input_devices()
-
-        # First try exact match (name + hostapi)
-        if device_config.get("hostapi_name"):
-            for device in devices:
-                if (
-                    device["name"] == device_config["name"]
-                    and device["hostapi_name"] == device_config["hostapi_name"]
-                ):
-                    return device
-
-        # Fallback to name-only match
-        for device in devices:
-            if device["name"] == device_config["name"]:
-                return device
-
-        return None
-
-    @staticmethod
-    def device_to_config(device: Dict[str, Any]) -> Dict[str, str]:
-        """
-        Convert a device dictionary to config format.
-
-        Args:
-            device: Device dictionary from list_input_devices()
-
-        Returns:
-            Dict with 'name' and 'hostapi_name' keys
-        """
-        return {"name": device["name"], "hostapi_name": device["hostapi_name"]}

@@ -11,3 +11,10 @@ wheels/
 
 # Audio files
 *.wav
+
+# Claude Code configuration
+CLAUDE.md
+
+# Test coverage files
+.coverage
+htmlcov/

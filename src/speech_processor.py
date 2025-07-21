@@ -8,6 +8,7 @@ parameters for accuracy and performance.
 from faster_whisper import WhisperModel
 import numpy as np
 from typing import Optional, Tuple, List, Dict, Any
+from logger import get_logger
 
 
 class SpeechProcessor:
@@ -42,20 +43,23 @@ class SpeechProcessor:
         self.language = language
         self.vad_filter = vad_filter
         self.model: Optional[WhisperModel] = None
+        self.logger = get_logger()
 
         self._load_model()
 
     def _load_model(self) -> None:
         try:
-            print(f"Loading Whisper model: {self.model_size} on {self.device}")
+            self.logger.info(
+                f"Loading Whisper model: {self.model_size} on {self.device}", "model"
+            )
             self.model = WhisperModel(
                 self.model_size,
                 device=self.device,
                 compute_type="float32" if self.device == "cpu" else "float16",
             )
-            print("Model loaded successfully")
+            self.logger.success("Model loaded successfully", "model")
         except Exception as e:
-            print(f"Error loading model: {e}")
+            self.logger.error(f"Error loading model: {e}", "model")
             raise
 
     def transcribe(self, audio_data: np.ndarray) -> Tuple[str, float, str, float]:
@@ -102,7 +106,7 @@ class SpeechProcessor:
             return full_text, total_duration, info.language, info.language_probability
 
         except Exception as e:
-            print(f"Error during transcription: {e}")
+            self.logger.error(f"Error during transcription: {e}", "speech")
             return "", 0.0, "", 0.0
 
     def transcribe_with_timestamps(
@@ -154,12 +158,14 @@ class SpeechProcessor:
             return result
 
         except Exception as e:
-            print(f"Error during transcription with timestamps: {e}")
+            self.logger.error(
+                f"Error during transcription with timestamps: {e}", "speech"
+            )
             return []
 
     def set_language(self, language: str) -> None:
         self.language = language
-        print(f"Language set to: {language}")
+        self.logger.info(f"Language set to: {language}", "language")
 
     def get_model_info(self) -> Dict[str, Any]:
         return {

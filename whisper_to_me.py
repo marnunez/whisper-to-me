@@ -27,12 +27,13 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), "src"))
 
 from audio_recorder import AudioRecorder
+from audio_device_manager import AudioDeviceManager
 from speech_processor import SpeechProcessor
 from keystroke_handler import KeystrokeHandler
 from tray_icon import TrayIcon
 from single_instance import SingleInstance
 from config import ConfigManager, AppConfig
-from typing import Optional
+from logger import get_logger, setup_logger, LogLevel
 from pynput import keyboard
 
 
@@ -72,41 +73,49 @@ class WhisperToMe:
         self._update_from_config()
 
         # Initialize components
-        print("Initializing Whisper-to-Me...")
-        print(
-            f"Loading {self.config.general.model} model on {self.config.general.device}..."
+        self.logger = get_logger()
+        self.logger.info("Initializing Whisper-to-Me...")
+        self.logger.model_loaded(self.config.general.model, self.config.general.device)
+        self.logger.info(
+            f"Using profile: {self.config_manager.get_current_profile()}", "config"
         )
-        print(f"Using profile: {self.config_manager.get_current_profile()}")
 
-        # Initialize audio recorder with fallback for invalid devices
-        device_id = self._resolve_audio_device()
+        # Initialize device manager
+        self.device_manager = AudioDeviceManager(self.config.recording.audio_device)
+
+        # Initialize audio recorder with managed device
+        device = self.device_manager.get_current_device()
         try:
-            self.audio_recorder = AudioRecorder(device_id=device_id)
+            self.audio_recorder = AudioRecorder(
+                device_id=self.device_manager.get_current_device_id(),
+                device_name=device.name if device else None,
+            )
         except Exception as e:
-            if device_id is not None:
-                device_name = (
-                    self.config.recording.audio_device.get("name")
-                    if self.config.recording.audio_device
-                    else f"ID {device_id}"
+            if device is not None:
+                self.logger.error(
+                    f"Audio device '{device.name}' failed to initialize: {e}", "audio"
                 )
-                print(f"❌ Audio device '{device_name}' failed to initialize:")
-                print(f"   Error: {e}")
 
                 # Show available devices to help user
-                available_devices = AudioRecorder.list_input_devices()
+                available_devices = self.device_manager.list_devices()
                 if available_devices:
-                    print("📱 Available audio devices:")
-                    for device in available_devices:
-                        print(
-                            f"   {device['id']}: {device['name']} ({device['hostapi_name']})"
+                    self.logger.info("Available audio devices:", "device")
+                    for dev in available_devices:
+                        self.logger.info(
+                            f"   {dev.id}: {dev.name} ({dev.hostapi_name})", "device"
                         )
 
-                print("🔄 Falling back to default audio device...")
-                self.config.recording.audio_device = None
+                self.logger.info(
+                    "Falling back to default audio device...", "audio", "processing"
+                )
+                self.device_manager._device_config = None
+                self.device_manager._current_device = None
                 self.audio_recorder = AudioRecorder(device_id=None)
             else:
                 # Even default device failed
-                print(f"❌ Failed to initialize default audio device: {e}")
+                self.logger.critical(
+                    f"Failed to initialize default audio device: {e}", "audio"
+                )
                 raise
         self.speech_processor = SpeechProcessor(
             model_size=self.config.general.model,
@@ -125,23 +134,27 @@ class WhisperToMe:
                 get_profiles=self.config_manager.get_profile_names,
                 get_current_profile=self.config_manager.get_current_profile,
                 on_device_change=self.switch_audio_device,
-                get_devices=self.get_available_devices,
-                get_current_device=self.get_current_device,
+                get_devices=lambda: self._convert_devices_for_tray(),
+                get_current_device=lambda: self._convert_device_for_tray(
+                    self.device_manager.get_current_device()
+                ),
             )
             self.tray_icon.start()
 
         # Format key display for user
         trigger_display = self.config.recording.trigger_key
 
-        if self.config.recording.mode == "tap-mode":
-            print(f"✓ Ready! Tap {trigger_display} to start/stop recording")
-            print(
-                f"  Press {self.config.recording.discard_key} while recording to discard"
-            )
-        else:
-            print(f"✓ Ready! Press and hold {trigger_display} to record")
-        print("Press Ctrl+C in terminal to exit")
-        print("Note: This captures keys globally across all applications")
+        self.logger.hotkey_info(
+            trigger_display,
+            self.config.recording.mode,
+            self.config.recording.discard_key
+            if self.config.recording.mode == "tap-mode"
+            else None,
+        )
+        self.logger.info("Press Ctrl+C in terminal to exit", "app")
+        self.logger.info(
+            "Note: This captures keys globally across all applications", "app"
+        )
 
     def _update_from_config(self):
         """Update instance variables from current configuration."""
@@ -162,7 +175,7 @@ class WhisperToMe:
 
     def switch_profile(self, profile_name: str):
         """Switch to a different profile and update configuration."""
-        print(f"🔄 Switching to profile: {profile_name}")
+        self.logger.profile_switched(profile_name)
 
         # Apply the new profile
         new_config = self.config_manager.apply_profile(profile_name)
@@ -182,16 +195,20 @@ class WhisperToMe:
             or old_device != new_config.general.device
         ):
             if old_language != new_config.general.language:
-                print(
-                    f"🌐 Language changed: {old_language} → {new_config.general.language}"
+                self.logger.info(
+                    f"Language changed: {old_language} → {new_config.general.language}",
+                    "config",
+                    "language",
                 )
 
             if (
                 old_model != new_config.general.model
                 or old_device != new_config.general.device
             ):
-                print(
-                    f"🔄 Model/device changed: {old_model}@{old_device} → {new_config.general.model}@{new_config.general.device}"
+                self.logger.info(
+                    f"Model/device changed: {old_model}@{old_device} → {new_config.general.model}@{new_config.general.device}",
+                    "config",
+                    "model",
                 )
 
             # Reinitialize speech processor with new settings
@@ -206,87 +223,88 @@ class WhisperToMe:
         # Save the profile switch
         self.config_manager.save_config()
 
-        print("✓ Profile switch completed")
+        self.logger.success("Profile switch completed", "profile")
 
-    def get_available_devices(self):
-        """Get list of available audio input devices."""
-        return AudioRecorder.list_input_devices()
+    def _convert_devices_for_tray(self):
+        """Convert AudioDevice objects to dict format expected by tray."""
+        devices = self.device_manager.list_devices()
+        return [
+            {
+                "id": dev.id,
+                "name": dev.name,
+                "hostapi_name": dev.hostapi_name,
+                "channels": dev.channels,
+                "default_samplerate": dev.sample_rate,
+            }
+            for dev in devices
+        ]
 
-    def _resolve_audio_device(self) -> Optional[int]:
-        """Resolve audio device config to actual device ID."""
-        if self.config.recording.audio_device is None:
+    def _convert_device_for_tray(self, device):
+        """Convert AudioDevice object to dict format expected by tray."""
+        if device is None:
+            # Try to get default device info
+            default = self.device_manager.get_default_device()
+            if default:
+                return {
+                    "id": default.id,
+                    "name": default.name,
+                    "hostapi_name": default.hostapi_name,
+                    "channels": default.channels,
+                    "default_samplerate": default.sample_rate,
+                }
             return None
-
-        device = AudioRecorder.find_device_by_config(self.config.recording.audio_device)
-        if device:
-            return device["id"]
-        else:
-            # Device not found, reset config
-            print(
-                f"⚠️  Configured audio device '{self.config.recording.audio_device.get('name')}' not found"
-            )
-            self.config.recording.audio_device = None
-            return None
-
-    def get_current_device(self):
-        """Get current audio device info."""
-        device_id = self._resolve_audio_device()
-        if device_id is None:
-            return AudioRecorder.get_default_input_device()
-        else:
-            devices = AudioRecorder.list_input_devices()
-            for device in devices:
-                if device["id"] == device_id:
-                    return device
-            return None
+        return {
+            "id": device.id,
+            "name": device.name,
+            "hostapi_name": device.hostapi_name,
+            "channels": device.channels,
+            "default_samplerate": device.sample_rate,
+        }
 
     def switch_audio_device(self, device_id: int):
         """Switch to a different audio device."""
-        devices = AudioRecorder.list_input_devices()
+        # Find the device in our list
+        devices = self.device_manager.list_devices()
         target_device = None
 
         for device in devices:
-            if device["id"] == device_id:
+            if device.id == device_id:
                 target_device = device
                 break
 
         if not target_device:
-            print(f"❌ Audio device {device_id} not found")
+            self.logger.error(f"Audio device {device_id} not found", "device")
             return
 
-        print(f"🎤 Switching to audio device: {target_device['name']}")
+        self.logger.device_switched(target_device.name)
 
-        try:
-            # Test the device first
-            test_recorder = AudioRecorder(device_id=device_id)
-
-            # If successful, update config and replace recorder
-            self.config.recording.audio_device = AudioRecorder.device_to_config(
-                target_device
-            )
-            self.audio_recorder = test_recorder
-
-            # Save config change
-            self.config_manager.save_config()
-
-            # Refresh tray menu to update device list
-            if hasattr(self, "tray_icon") and self.tray_icon:
-                self.tray_icon.refresh_menu()
-
-            print("✓ Audio device switch completed")
-
-        except Exception as e:
-            print(f"❌ Failed to switch to device '{target_device['name']}':")
-            print(f"   Error: {e}")
-
-            # Suggest compatible sample rate if it's a sample rate issue
-            if "sample rate" in str(e).lower() or "PaErrorCode -9997" in str(e):
-                print(
-                    f"   Device supports: {target_device.get('default_samplerate', 'unknown')} Hz"
+        # Use device manager to switch
+        if self.device_manager.switch_device(target_device):
+            try:
+                # Create new audio recorder with the new device
+                self.audio_recorder = AudioRecorder(
+                    device_id=target_device.id, device_name=target_device.name
                 )
-                print("   Try using a device that supports 16000 Hz sample rate")
 
-            print("   Keeping current audio device.")
+                # Update config with new device
+                self.config.recording.audio_device = (
+                    self.device_manager.get_device_config()
+                )
+                self.config_manager.save_config()
+
+                # Refresh tray menu to update device list
+                if hasattr(self, "tray_icon") and self.tray_icon:
+                    self.tray_icon.refresh_menu()
+
+                self.logger.success("Audio device switch completed", "device")
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to initialize recorder with device '{target_device.name}': {e}",
+                    "audio",
+                )
+                self.logger.info("Keeping current audio device.", "device")
+        else:
+            self.logger.info("Keeping current audio device.", "device")
 
     def _on_trigger_tap(self):
         """Handle trigger key combination in tap mode."""
@@ -359,7 +377,7 @@ class WhisperToMe:
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
                 debug_filename = f"debug_recording_{timestamp}.wav"
                 sf.write(debug_filename, audio_data, self.audio_recorder.sample_rate)
-                print(f"🐛 Debug: Saved audio as {debug_filename}")
+                self.logger.debug(f"Saved audio as {debug_filename}", "debug")
 
             # Prepare audio for Whisper and transcribe
             whisper_audio = self.audio_recorder.get_audio_data_for_whisper(audio_data)
@@ -368,22 +386,18 @@ class WhisperToMe:
             )
 
             if text and text.strip():
-                print("✓ Transcription completed")
-                if language:
-                    print(
-                        f"🌐 Detected language: {language} (confidence: {confidence:.2f})"
-                    )
+                self.logger.transcription_completed(text, language, confidence)
                 if self.debug:
-                    print(f"   '{text}' (duration: {duration:.2f}s)")
+                    self.logger.debug(f"Duration: {duration:.2f}s", "speech")
                 self.keystroke_handler.type_text_fast(
                     text, self.config.general.trailing_space
                 )
             else:
-                print("✗ No speech detected")
+                self.logger.warning("No speech detected", "speech")
 
             self.recording_counter += 1
         else:
-            print("✗ No audio recorded")
+            self.logger.warning("No audio recorded", "audio")
 
     def _discard_recording(self):
         """Discard the current recording without transcription."""
@@ -396,7 +410,7 @@ class WhisperToMe:
         # Stop recording and discard audio
         _ = self.audio_recorder.stop_recording()
 
-        print("🗑️ Recording discarded")
+        self.logger.info("Recording discarded", "audio", "🗑️")
 
     def run(self):
         """
@@ -422,13 +436,11 @@ class WhisperToMe:
             return
         self._shutting_down = True
 
-        print("Shutting down...")
+        self.logger.application_shutdown()
 
         # Stop the tray icon
         if self.tray_icon:
             self.tray_icon.stop()
-
-        print("Goodbye!")
 
         # Force immediate exit - keyboard listener won't stop cleanly from another thread
         import os
@@ -443,6 +455,13 @@ def main():
     Parses command line arguments and initializes the WhisperToMe application.
     """
     import argparse
+
+    # Initialize config manager first to determine debug level
+    config_manager = ConfigManager()
+
+    # Setup logger early (will be reconfigured after arg parsing)
+    setup_logger(min_level=LogLevel.INFO)
+    logger = get_logger()
 
     parser = argparse.ArgumentParser(
         description="Whisper-to-Me: Voice to Keystroke Application",
@@ -541,47 +560,71 @@ Examples:
 
     args = parser.parse_args()
 
-    # Initialize config manager
-    config_manager = ConfigManager()
+    # Reconfigure logger with debug level if requested
+    if args.debug:
+        setup_logger(min_level=LogLevel.DEBUG)
+        logger = get_logger()
 
     # Handle configuration-only commands
     if args.config_path:
-        print(f"Configuration file: {config_manager.get_config_file_path()}")
+        logger.info(
+            f"Configuration file: {config_manager.get_config_file_path()}", "config"
+        )
         return
 
     if args.list_profiles:
-        print("Available profiles:")
+        logger.info("Available profiles:", "config")
         profiles = config_manager.get_profile_names()
         current = config_manager.get_current_profile()
+
+        # Load base config to show profile details
+        base_config = config_manager.load_config()
+
         for profile in profiles:
             marker = "●" if profile == current else "○"
-            print(f"  {marker} {profile}")
+            logger.info(f"  {marker} {profile}", "config")
+
+            if profile == "default":
+                # Show base config details
+                logger.info(
+                    f"      Model: {base_config.general.model}, Device: {base_config.general.device}",
+                    "config",
+                )
+                logger.info(
+                    f"      Mode: {base_config.recording.mode}, Language: {base_config.general.language}",
+                    "config",
+                )
+            else:
+                # Apply profile and show its specific settings
+                profile_config = config_manager.apply_profile(profile)
+                logger.info(
+                    f"      Model: {profile_config.general.model}, Device: {profile_config.general.device}",
+                    "config",
+                )
+                logger.info(
+                    f"      Mode: {profile_config.recording.mode}, Language: {profile_config.general.language}",
+                    "config",
+                )
         return
 
     # List audio devices if requested
     if args.list_devices:
-        print("Available audio input devices:")
-        devices = AudioRecorder.list_input_devices()
-        default = AudioRecorder.get_default_input_device()
-
-        # Group devices by host API
-        devices_by_hostapi = {}
-        for device in devices:
-            hostapi_name = device.get("hostapi_name", "Unknown")
-            if hostapi_name not in devices_by_hostapi:
-                devices_by_hostapi[hostapi_name] = []
-            devices_by_hostapi[hostapi_name].append(device)
+        logger.info("Available audio input devices:", "device")
+        device_manager = AudioDeviceManager()
+        devices_by_hostapi = device_manager.group_devices_by_hostapi()
+        default = device_manager.get_default_device()
 
         # Display devices grouped by host API
         for hostapi_name in sorted(devices_by_hostapi.keys()):
-            print(f"\n{hostapi_name}:")
+            logger.info(f"\n{hostapi_name}:", "device")
             for device in devices_by_hostapi[hostapi_name]:
                 default_mark = (
-                    " (default)" if default and device["id"] == default["id"] else ""
+                    " (default)" if default and device.id == default.id else ""
                 )
-                print(f"  {device['id']}: {device['name']}{default_mark}")
-                print(
-                    f"      Channels: {device['channels']}, Sample rate: {device['default_samplerate']}"
+                logger.info(f"  {device.id}: {device.name}{default_mark}", "device")
+                logger.info(
+                    f"      Channels: {device.channels}, Sample rate: {device.sample_rate}",
+                    "device",
                 )
         return
 
@@ -629,7 +672,7 @@ Examples:
         }
 
     if args.tap_mode and args.push_to_talk:
-        print("Error: Cannot specify both --tap-mode and --push-to-talk")
+        logger.error("Cannot specify both --tap-mode and --push-to-talk", "config")
         return
     elif args.tap_mode:
         config.recording.mode = "tap-mode"
@@ -644,9 +687,11 @@ Examples:
     if args.create_profile:
         success = config_manager.create_profile(args.create_profile, config)
         if success:
-            print(f"✓ Profile '{args.create_profile}' created successfully")
+            logger.success(
+                f"Profile '{args.create_profile}' created successfully", "profile"
+            )
         else:
-            print(f"✗ Failed to create profile '{args.create_profile}'")
+            logger.error(f"Failed to create profile '{args.create_profile}'", "profile")
         return
 
     # Validate key configurations before starting
@@ -654,23 +699,27 @@ Examples:
         # Validate trigger key combination
         config_manager.parse_key_combination(config.recording.trigger_key)
     except ValueError as e:
-        print(f"Error in trigger key configuration: {e}")
-        print(f"Invalid trigger key: '{config.recording.trigger_key}'")
-        print("\nValid trigger keys include:")
-        print("  - Single keys: scroll_lock, caps_lock, pause, tab, etc.")
-        print("  - Single characters: a-z, 0-9, symbols")
-        print("  - Combinations: ctrl+shift+r, alt+space, ctrl+-, etc.")
+        logger.error(f"Error in trigger key configuration: {e}", "config")
+        logger.error(f"Invalid trigger key: '{config.recording.trigger_key}'", "config")
+        logger.info("Valid trigger keys include:", "config")
+        logger.info(
+            "  - Single keys: scroll_lock, caps_lock, pause, tab, etc.", "config"
+        )
+        logger.info("  - Single characters: a-z, 0-9, symbols", "config")
+        logger.info("  - Combinations: ctrl+shift+r, alt+space, ctrl+-, etc.", "config")
         return
 
     try:
         # Validate discard key (single key only)
         config_manager.parse_key_string(config.recording.discard_key)
     except ValueError as e:
-        print(f"Error in discard key configuration: {e}")
-        print(f"Invalid discard key: '{config.recording.discard_key}'")
-        print("\nValid discard keys include:")
-        print("  - Named keys: esc, delete, backspace, tab, etc.")
-        print("  - Note: Discard key must be a single key, not a combination")
+        logger.error(f"Error in discard key configuration: {e}", "config")
+        logger.error(f"Invalid discard key: '{config.recording.discard_key}'", "config")
+        logger.info("Valid discard keys include:", "config")
+        logger.info("  - Named keys: esc, delete, backspace, tab, etc.", "config")
+        logger.info(
+            "  - Note: Discard key must be a single key, not a combination", "config"
+        )
         return
 
     # Ensure single instance and run application

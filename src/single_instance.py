@@ -9,6 +9,7 @@ import sys
 import fcntl
 import atexit
 from pathlib import Path
+from logger import get_logger
 
 
 class SingleInstance:
@@ -29,6 +30,7 @@ class SingleInstance:
             self.lockfile_path = Path.home() / ".whisper-to-me.lock"
 
         self.lockfile = None
+        self.logger = get_logger()
 
     def acquire(self) -> bool:
         """
@@ -78,12 +80,16 @@ class SingleInstance:
     def __enter__(self):
         """Context manager entry."""
         if not self.acquire():
-            print("\n⚠️  Whisper-to-Me is already running!")
-            print("Only one instance can run at a time.")
-            print("\nTo stop the running instance:")
-            print("  - Check your system tray and right-click to quit")
-            print("  - Or find the terminal running it and press Ctrl+C")
-            print(f"\nLock file location: {self.lockfile_path}")
+            self.logger.warning("Whisper-to-Me is already running!", "app")
+            self.logger.info("Only one instance can run at a time.", "app")
+            self.logger.info("\nTo stop the running instance:", "app")
+            self.logger.info(
+                "  - Check your system tray and right-click to quit", "app"
+            )
+            self.logger.info(
+                "  - Or find the terminal running it and press Ctrl+C", "app"
+            )
+            self.logger.info(f"\nLock file location: {self.lockfile_path}", "app")
             sys.exit(1)
         return self
 

@@ -11,13 +11,29 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from pynput import keyboard
+from config_differ import ConfigSectionDiffer
+from config_validator import ConfigValidator, ValidationError
+from logger import get_logger
+from config_constants import (
+    GENERAL_SECTION,
+    RECORDING_SECTION,
+    UI_SECTION,
+    ADVANCED_SECTION,
+    PROFILES_SECTION,
+    REQUIRED_SECTIONS,
+    DEFAULT_PROFILE,
+    RecordingModes,
+    DeviceTypes,
+    ModelSizes,
+    Languages,
+)
 
 
 @dataclass
 class RecordingConfig:
     """Recording-specific configuration."""
 
-    mode: str = "push-to-talk"  # "push-to-talk" or "tap-mode"
+    mode: str = RecordingModes.PUSH_TO_TALK
     trigger_key: str = "<scroll_lock>"
     discard_key: str = "<esc>"
     audio_device: Optional[Dict[str, str]] = None  # {"name": str, "hostapi_name": str}
@@ -43,11 +59,11 @@ class AdvancedConfig:
 class GeneralConfig:
     """General application configuration."""
 
-    model: str = "large-v3"
-    device: str = "cuda"
-    language: str = "auto"
+    model: str = ModelSizes.LARGE_V3
+    device: str = DeviceTypes.CUDA
+    language: str = Languages.AUTO
     debug: bool = False
-    last_profile: str = "default"
+    last_profile: str = DEFAULT_PROFILE
     trailing_space: bool = False
 
 
@@ -82,8 +98,11 @@ class ConfigManager:
         """Initialize configuration manager."""
         self.config_dir = Path.home() / ".config" / "whisper-to-me"
         self.config_file = self.config_dir / "config.toml"
-        self.current_profile = "default"
+        self.current_profile = DEFAULT_PROFILE
         self._config: Optional[AppConfig] = None
+        self._config_differ = ConfigSectionDiffer()
+        self._validator = ConfigValidator()
+        self.logger = get_logger()
         self._ensure_config_dir()
 
     def _ensure_config_dir(self) -> None:
@@ -93,23 +112,27 @@ class ConfigManager:
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration structure."""
         return {
-            "general": {
-                "model": "large-v3",
-                "device": "cuda",
-                "language": "auto",
+            GENERAL_SECTION: {
+                "model": ModelSizes.LARGE_V3,
+                "device": DeviceTypes.CUDA,
+                "language": Languages.AUTO,
                 "debug": False,
-                "last_profile": "default",
+                "last_profile": DEFAULT_PROFILE,
                 "trailing_space": False,
             },
-            "recording": {
-                "mode": "push-to-talk",
+            RECORDING_SECTION: {
+                "mode": RecordingModes.PUSH_TO_TALK,
                 "trigger_key": "<scroll_lock>",
                 "discard_key": "<esc>",
                 "audio_device": None,
             },
-            "ui": {"use_tray": True},
-            "advanced": {"sample_rate": 16000, "chunk_size": 512, "vad_filter": True},
-            "profiles": {},
+            UI_SECTION: {"use_tray": True},
+            ADVANCED_SECTION: {
+                "sample_rate": 16000,
+                "chunk_size": 512,
+                "vad_filter": True,
+            },
+            PROFILES_SECTION: {},
         }
 
     def _create_default_config(self) -> None:
@@ -161,8 +184,8 @@ class ConfigManager:
             with open(self.config_file, "rb") as f:
                 return tomllib.load(f)
         except Exception as e:
-            print(f"Error loading config file: {e}")
-            print("Using default configuration")
+            self.logger.error(f"Error loading config file: {e}", "config")
+            self.logger.info("Using default configuration", "config")
             return self._get_default_config()
 
     def _validate_config(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
@@ -170,7 +193,7 @@ class ConfigManager:
         default = self._get_default_config()
 
         # Ensure all required sections exist
-        for section in ["general", "recording", "ui", "advanced"]:
+        for section in REQUIRED_SECTIONS:
             if section not in config_dict:
                 config_dict[section] = default[section]
             else:
@@ -180,8 +203,8 @@ class ConfigManager:
                         config_dict[section][key] = value
 
         # Ensure profiles section exists
-        if "profiles" not in config_dict:
-            config_dict["profiles"] = {}
+        if PROFILES_SECTION not in config_dict:
+            config_dict[PROFILES_SECTION] = {}
 
         return config_dict
 
@@ -191,11 +214,11 @@ class ConfigManager:
         config_dict = self._validate_config(config_dict)
 
         self._config = AppConfig(
-            general=GeneralConfig(**config_dict["general"]),
-            recording=RecordingConfig(**config_dict["recording"]),
-            ui=UIConfig(**config_dict["ui"]),
-            advanced=AdvancedConfig(**config_dict["advanced"]),
-            profiles=config_dict["profiles"],
+            general=GeneralConfig(**config_dict[GENERAL_SECTION]),
+            recording=RecordingConfig(**config_dict[RECORDING_SECTION]),
+            ui=UIConfig(**config_dict[UI_SECTION]),
+            advanced=AdvancedConfig(**config_dict[ADVANCED_SECTION]),
+            profiles=config_dict[PROFILES_SECTION],
         )
 
         # Set current profile from config
@@ -208,11 +231,11 @@ class ConfigManager:
             return
 
         config_dict = {
-            "general": asdict(self._config.general),
-            "recording": asdict(self._config.recording),
-            "ui": asdict(self._config.ui),
-            "advanced": asdict(self._config.advanced),
-            "profiles": self._config.profiles,
+            GENERAL_SECTION: asdict(self._config.general),
+            RECORDING_SECTION: asdict(self._config.recording),
+            UI_SECTION: asdict(self._config.ui),
+            ADVANCED_SECTION: asdict(self._config.advanced),
+            PROFILES_SECTION: self._config.profiles,
         }
 
         self._save_config_to_file(config_dict)
@@ -222,7 +245,7 @@ class ConfigManager:
         if self._config is None:
             self.load_config()
 
-        profiles = ["default"]  # Always include default
+        profiles = [DEFAULT_PROFILE]  # Always include default
         if self._config and self._config.profiles:
             profiles.extend(self._config.profiles.keys())
 
@@ -237,13 +260,15 @@ class ConfigManager:
         if self._config is None:
             self.load_config()
 
-        if profile_name == "default":
+        if profile_name == DEFAULT_PROFILE:
             # Use base configuration
-            self.current_profile = "default"
+            self.current_profile = DEFAULT_PROFILE
             return self._config
 
         if profile_name not in self._config.profiles:
-            print(f"Profile '{profile_name}' not found, using default")
+            self.logger.warning(
+                f"Profile '{profile_name}' not found, using default", "profile"
+            )
             return self._config
 
         # Create a copy of the base config
@@ -255,28 +280,9 @@ class ConfigManager:
             profiles=self._config.profiles,
         )
 
-        # Apply profile overrides
+        # Apply profile overrides using the differ
         profile_data = self._config.profiles[profile_name]
-
-        if "general" in profile_data:
-            for key, value in profile_data["general"].items():
-                if hasattr(profile_config.general, key):
-                    setattr(profile_config.general, key, value)
-
-        if "recording" in profile_data:
-            for key, value in profile_data["recording"].items():
-                if hasattr(profile_config.recording, key):
-                    setattr(profile_config.recording, key, value)
-
-        if "ui" in profile_data:
-            for key, value in profile_data["ui"].items():
-                if hasattr(profile_config.ui, key):
-                    setattr(profile_config.ui, key, value)
-
-        if "advanced" in profile_data:
-            for key, value in profile_data["advanced"].items():
-                if hasattr(profile_config.advanced, key):
-                    setattr(profile_config.advanced, key, value)
+        self._config_differ.apply_profile_data(profile_config, profile_data)
 
         self.current_profile = profile_name
         profile_config.general.last_profile = profile_name
@@ -288,45 +294,9 @@ class ConfigManager:
         if self._config is None:
             self.load_config()
 
-        # Convert current config to profile format (only non-default values)
+        # Convert current config to profile format using the differ
         default = self._get_default_config()
-        profile_data = {}
-
-        # Compare general settings
-        general_diff = {}
-        current_general = asdict(config.general)
-        for key, value in current_general.items():
-            if key != "last_profile" and value != default["general"].get(key):
-                general_diff[key] = value
-        if general_diff:
-            profile_data["general"] = general_diff
-
-        # Compare recording settings
-        recording_diff = {}
-        current_recording = asdict(config.recording)
-        for key, value in current_recording.items():
-            if value != default["recording"].get(key):
-                recording_diff[key] = value
-        if recording_diff:
-            profile_data["recording"] = recording_diff
-
-        # Compare UI settings
-        ui_diff = {}
-        current_ui = asdict(config.ui)
-        for key, value in current_ui.items():
-            if value != default["ui"].get(key):
-                ui_diff[key] = value
-        if ui_diff:
-            profile_data["ui"] = ui_diff
-
-        # Compare advanced settings
-        advanced_diff = {}
-        current_advanced = asdict(config.advanced)
-        for key, value in current_advanced.items():
-            if value != default["advanced"].get(key):
-                advanced_diff[key] = value
-        if advanced_diff:
-            profile_data["advanced"] = advanced_diff
+        profile_data = self._config_differ.create_profile_data(config, default)
 
         # Save profile
         self._config.profiles[name] = profile_data
@@ -338,7 +308,7 @@ class ConfigManager:
         if self._config is None:
             self.load_config()
 
-        if name == "default":
+        if name == DEFAULT_PROFILE:
             return False  # Cannot delete default profile
 
         if name in self._config.profiles:
@@ -346,8 +316,8 @@ class ConfigManager:
 
             # If deleting current profile, switch to default
             if self.current_profile == name:
-                self.current_profile = "default"
-                self._config.general.last_profile = "default"
+                self.current_profile = DEFAULT_PROFILE
+                self._config.general.last_profile = DEFAULT_PROFILE
 
             self.save_config()
             return True
@@ -365,19 +335,16 @@ class ConfigManager:
         Format: '<ctrl>+<shift>+r', '<scroll_lock>', 'a', '+'
         """
         try:
-            parsed_keys = keyboard.HotKey.parse(key_str)
-            return set(parsed_keys)
-        except ValueError:
-            raise ValueError(
-                f"Invalid key combination: '{key_str}'. Use format like '<ctrl>+<shift>+r', '<scroll_lock>', or 'a'"
-            )
+            return self._validator.validate_key_combination(key_str)
+        except ValidationError as e:
+            raise ValueError(str(e)) from e
 
     def parse_key_string(self, key_str: str) -> keyboard.Key:
         """Parse a single key string into a pynput Key object.
 
         Uses the same format as parse_key_combination but ensures only single keys.
         """
-        parsed_keys = self.parse_key_combination(key_str)
-        if len(parsed_keys) != 1:
-            raise ValueError(f"Expected single key, got combination: '{key_str}'")
-        return list(parsed_keys)[0]
+        try:
+            return self._validator.validate_single_key(key_str)
+        except ValidationError as e:
+            raise ValueError(str(e)) from e

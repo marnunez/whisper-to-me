@@ -10,6 +10,7 @@ from PIL import Image, ImageDraw
 import threading
 import os
 from typing import Optional, Callable, List
+from logger import get_logger
 
 
 class TrayIcon:
@@ -55,6 +56,7 @@ class TrayIcon:
         self.is_recording = False
         self._running = False
         self.current_profile = "default"
+        self.logger = get_logger()
 
     def create_image(self, recording: bool = False) -> Image.Image:
         """
@@ -119,7 +121,7 @@ class TrayIcon:
             return result
 
         except Exception as e:
-            print(f"Error loading icon: {e}")
+            self.logger.error(f"Error loading icon: {e}", "ui")
             return self._create_fallback_icon(recording)
 
     def _create_fallback_icon(self, recording: bool = False) -> Image.Image:
@@ -149,7 +151,7 @@ class TrayIcon:
             try:
                 self.icon.icon = self.create_image(recording)
             except Exception as e:
-                print(f"❌ Error updating icon: {e}")
+                self.logger.error(f"Error updating icon: {e}", "ui")
 
     def update_profile(self, profile_name: str):
         """Update the current profile and refresh the menu."""
@@ -161,7 +163,7 @@ class TrayIcon:
                 # Update tooltip
                 self.icon.title = f"Whisper-to-Me (Profile: {profile_name})"
             except Exception as e:
-                print(f"❌ Error updating profile: {e}")
+                self.logger.error(f"Error updating profile: {e}", "ui")
 
     def refresh_menu(self):
         """Manually refresh the tray menu."""
@@ -169,7 +171,7 @@ class TrayIcon:
             try:
                 self.icon.menu = self.create_menu()
             except Exception as e:
-                print(f"❌ Error refreshing menu: {e}")
+                self.logger.error(f"Error refreshing menu: {e}", "ui")
 
     def on_activate(self, icon, item):
         """Handle menu item activation (left-click on icon)."""
@@ -367,7 +369,7 @@ class TrayIcon:
             self.icon.run()
 
         except Exception as e:
-            print(f"❌ Error creating/running tray icon: {e}")
+            self.logger.error(f"Error creating/running tray icon: {e}", "ui")
             import traceback
 
             traceback.print_exc()
