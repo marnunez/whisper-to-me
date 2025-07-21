@@ -23,7 +23,10 @@ class TestComponentFactory:
     def setup(self, default_test_config, config_manager_with_temp_file):
         """Set up test environment."""
         self.config = default_test_config
-        self.config.recording.audio_device = {"name": "Test Device", "hostapi_name": "ALSA"}
+        self.config.recording.audio_device = {
+            "name": "Test Device",
+            "hostapi_name": "ALSA",
+        }
 
         self.config_manager = config_manager_with_temp_file
         self.factory = ComponentFactory(self.config, self.config_manager)
@@ -106,7 +109,9 @@ class TestComponentFactory:
         device_manager = self.factory.create_device_manager()
 
         # Make all device initialization fail
-        mock_sounddevice.InputStream.side_effect = Exception("No audio devices available")
+        mock_sounddevice.InputStream.side_effect = Exception(
+            "No audio devices available"
+        )
 
         # Should raise RuntimeError
         with pytest.raises(RuntimeError, match="Audio recorder initialization failed"):
@@ -134,7 +139,7 @@ class TestComponentFactory:
         mock_whisper_model.assert_called_once_with(
             "tiny",  # model from test config
             device="cpu",
-            compute_type="float32"  # CPU uses float32
+            compute_type="float32",  # CPU uses float32
         )
 
     def test_create_keystroke_handler(self):
@@ -165,7 +170,7 @@ class TestComponentFactory:
             on_profile_change=on_profile_change,
             on_device_change=on_device_change,
             get_devices=get_devices,
-            get_current_device=get_current_device
+            get_current_device=get_current_device,
         )
 
         assert tray == mock_tray
@@ -173,13 +178,16 @@ class TestComponentFactory:
         # Verify TrayIcon was created with correct arguments (order doesn't matter)
         mock_tray_class.assert_called_once()
         call_kwargs = mock_tray_class.call_args[1]
-        assert call_kwargs['on_quit'] == on_quit
-        assert call_kwargs['on_profile_change'] == on_profile_change
-        assert call_kwargs['get_profiles'] == self.config_manager.get_profile_names
-        assert call_kwargs['get_current_profile'] == self.config_manager.get_current_profile
-        assert call_kwargs['on_device_change'] == on_device_change
-        assert call_kwargs['get_devices'] == get_devices
-        assert call_kwargs['get_current_device'] == get_current_device
+        assert call_kwargs["on_quit"] == on_quit
+        assert call_kwargs["on_profile_change"] == on_profile_change
+        assert call_kwargs["get_profiles"] == self.config_manager.get_profile_names
+        assert (
+            call_kwargs["get_current_profile"]
+            == self.config_manager.get_current_profile
+        )
+        assert call_kwargs["on_device_change"] == on_device_change
+        assert call_kwargs["get_devices"] == get_devices
+        assert call_kwargs["get_current_device"] == get_current_device
 
     def test_recreate_speech_processor_no_change(self, mock_whisper_model):
         """Test recreate_speech_processor when model hasn't changed."""
@@ -197,6 +205,7 @@ class TestComponentFactory:
 
         # Create new config with different model
         from copy import deepcopy
+
         new_config = deepcopy(self.config)
         new_config.general.model = "base"
 
@@ -206,7 +215,7 @@ class TestComponentFactory:
         mock_whisper_model.assert_called_once_with(
             "base",
             device="cpu",
-            compute_type="float32"  # CPU uses float32
+            compute_type="float32",  # CPU uses float32
         )
 
     def test_recreate_speech_processor_device_change(self, mock_whisper_model):
@@ -215,6 +224,7 @@ class TestComponentFactory:
 
         # Create new config with different device
         from copy import deepcopy
+
         new_config = deepcopy(self.config)
         new_config.general.device = "cuda"
 
@@ -224,7 +234,7 @@ class TestComponentFactory:
         mock_whisper_model.assert_called_once_with(
             "tiny",
             device="cuda",
-            compute_type="float16"  # Should use float16 for CUDA
+            compute_type="float16",  # Should use float16 for CUDA
         )
 
     def test_recreate_speech_processor_language_change(self, mock_whisper_model):
@@ -233,6 +243,7 @@ class TestComponentFactory:
 
         # Create new config with different language
         from copy import deepcopy
+
         new_config = deepcopy(self.config)
         new_config.general.language = "fr"
 

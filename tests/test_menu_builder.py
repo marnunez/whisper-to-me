@@ -35,7 +35,9 @@ class TestMenuBuilder:
         self.builder.add_header("Test Header")
 
         assert len(self.builder.menu_items) == 1
-        mock_pystray.MenuItem.assert_called_once_with("Test Header", None, enabled=False)
+        mock_pystray.MenuItem.assert_called_once_with(
+            "Test Header", None, enabled=False
+        )
 
     @patch("whisper_to_me.menu_builder.pystray")
     def test_add_default_header(self, mock_pystray):
@@ -96,7 +98,7 @@ class TestMenuBuilder:
         self.builder.add_separator()
         self.builder.add_action_item("Action", Mock())
 
-        menu = self.builder.build()
+        self.builder.build()
 
         # Should create Menu with all items
         assert mock_pystray.Menu.called
@@ -154,7 +156,9 @@ class TestProfileMenuFormatter:
 
         # Create handler that returns different functions for each profile
         handlers = {profile: Mock(name=f"handler_{profile}") for profile in profiles}
-        handler = lambda p: handlers[p]
+
+        def handler(p):
+            return handlers[p]
 
         formatter = ProfileMenuFormatter(get_profiles, get_current, handler)
         result = formatter.create_profile_menu_items()
@@ -250,10 +254,8 @@ class TestTrayMenuBuilder:
         builder = TrayMenuBuilder()
         on_quit = Mock()
 
-        menu = builder.build_complete_menu(
-            current_profile="default",
-            current_device=None,
-            on_quit=on_quit
+        builder.build_complete_menu(
+            current_profile="default", current_device=None, on_quit=on_quit
         )
 
         # Should have created menu with header and quit
@@ -268,15 +270,16 @@ class TestTrayMenuBuilder:
         builder = TrayMenuBuilder()
         device = {"name": "USB Microphone", "id": 1}
 
-        menu = builder.build_complete_menu(
-            current_profile="default",
-            current_device=device,
-            on_quit=Mock()
+        builder.build_complete_menu(
+            current_profile="default", current_device=device, on_quit=Mock()
         )
 
         # Should include device info
-        info_calls = [call for call in mock_pystray.MenuItem.call_args_list
-                      if "Device: USB Microphone" in str(call)]
+        info_calls = [
+            call
+            for call in mock_pystray.MenuItem.call_args_list
+            if "Device: USB Microphone" in str(call)
+        ]
         assert len(info_calls) > 0
 
     @patch("whisper_to_me.menu_builder.pystray")
@@ -296,10 +299,10 @@ class TestTrayMenuBuilder:
         device_formatter.create_device_menu_items.return_value = [Mock(), Mock()]
         builder.set_device_formatter(device_formatter)
 
-        menu = builder.build_complete_menu(
+        builder.build_complete_menu(
             current_profile="work",
             current_device={"name": "Test Device"},
-            on_quit=Mock()
+            on_quit=Mock(),
         )
 
         # Should have called formatters
@@ -307,6 +310,9 @@ class TestTrayMenuBuilder:
         device_formatter.create_device_menu_items.assert_called_once()
 
         # Should have created submenus
-        submenu_calls = [call for call in mock_pystray.MenuItem.call_args_list
-                         if "Switch Profile" in str(call) or "Select Audio Device" in str(call)]
+        submenu_calls = [
+            call
+            for call in mock_pystray.MenuItem.call_args_list
+            if "Switch Profile" in str(call) or "Select Audio Device" in str(call)
+        ]
         assert len(submenu_calls) == 2

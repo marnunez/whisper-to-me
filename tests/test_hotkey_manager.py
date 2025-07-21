@@ -26,6 +26,7 @@ class TestHotkeyManager:
         """Test HotkeyManager initialization in push-to-talk mode."""
         # Use real key parsing
         from pynput import keyboard
+
         mock_keyboard_hooks.HotKey.parse = keyboard.HotKey.parse
 
         manager = HotkeyManager(self.config)
@@ -47,14 +48,17 @@ class TestHotkeyManager:
 
         # Use real key parsing
         from pynput import keyboard
+
         mock_keyboard_hooks.HotKey.parse = keyboard.HotKey.parse
 
         # Track created hotkeys
         created_hotkeys = []
+
         def track_hotkey(*args, **kwargs):
             hotkey = Mock()
             created_hotkeys.append((args, kwargs))
             return hotkey
+
         mock_keyboard_hooks.HotKey.side_effect = track_hotkey
 
         manager = HotkeyManager(self.config)
@@ -262,9 +266,10 @@ class TestHotkeyManager:
         """Test updating configuration recreates hotkeys."""
         # Use real key parsing
         from pynput import keyboard
+
         mock_keyboard_hooks.HotKey.parse = keyboard.HotKey.parse
 
-        manager = HotkeyManager(self.config)
+        HotkeyManager(self.config)
 
         # Change trigger key
         self.config.recording.trigger_key = "<f9>"
@@ -280,6 +285,7 @@ class TestHotkeyManager:
         """Test handling invalid key format."""
         # Use real parsing to test error handling
         from pynput import keyboard
+
         mock_keyboard_hooks.HotKey.parse = keyboard.HotKey.parse
 
         self.config.recording.trigger_key = "invalid_key_format"
@@ -291,6 +297,7 @@ class TestHotkeyManager:
     def test_complex_key_combinations(self, mock_keyboard_hooks):
         """Test complex key combinations with real parsing."""
         from pynput import keyboard
+
         mock_keyboard_hooks.HotKey.parse = keyboard.HotKey.parse
 
         # Test various complex combinations

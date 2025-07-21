@@ -62,9 +62,7 @@ def default_test_config():
             audio_device=None,
         ),
         ui=UIConfig(use_tray=True),
-        advanced=AdvancedConfig(
-            sample_rate=16000, chunk_size=512, vad_filter=True
-        ),
+        advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
         profiles={},
     )
 
@@ -115,7 +113,7 @@ def mock_whisper_model():
         mock_model = Mock()
         mock_model.transcribe.return_value = (
             [{"text": "Test transcription"}],
-            {"language": "en", "language_probability": 0.99}
+            {"language": "en", "language_probability": 0.99},
         )
         mock_model_class.return_value = mock_model
         yield mock_model_class
@@ -137,6 +135,7 @@ def mock_keyboard_hooks():
 
         # Keep parse function real by default
         from pynput import keyboard
+
         mock_kb.HotKey.parse = keyboard.HotKey.parse
 
         yield mock_kb

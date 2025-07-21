@@ -54,33 +54,27 @@ __all__ = [
     "RecordingConfig",
     "UIConfig",
     "AdvancedConfig",
-
     # Management
     "ComponentFactory",
     "ProfileManager",
-
     # Audio
     "AudioDeviceManager",
     "AudioDevice",
     "AudioRecorder",
     "SpeechProcessor",
-
     # Input/Output
     "KeystrokeHandler",
     "HotkeyManager",
-
     # UI
     "TrayIcon",
     "MenuBuilder",
     "TrayMenuBuilder",
     "ProfileMenuFormatter",
     "DeviceMenuFormatter",
-
     # Utilities
     "get_logger",
     "SingleInstance",
     "ApplicationStateManager",
-
     # Exceptions
     "AudioError",
     "AudioDeviceNotFoundError",

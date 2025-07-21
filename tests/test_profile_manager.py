@@ -37,7 +37,9 @@ class TestProfileManager:
         self.default_config = self.config_manager.load_config()
 
         # Create real ComponentFactory with config
-        self.component_factory = ComponentFactory(self.default_config, self.config_manager)
+        self.component_factory = ComponentFactory(
+            self.default_config, self.config_manager
+        )
 
         # Create callback mock
         self.on_config_changed = Mock()
@@ -95,9 +97,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(
-                sample_rate=16000, chunk_size=512, vad_filter=True
-            ),
+            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
             profiles={},
         )
         self.config_manager.create_profile("gaming", gaming_config)
@@ -113,7 +113,9 @@ class TestProfileManager:
     def test_switch_profile_success(self):
         """Test successful profile switching."""
         # Mock only the speech processor recreation
-        with patch.object(self.component_factory, 'recreate_speech_processor', return_value=None):
+        with patch.object(
+            self.component_factory, "recreate_speech_processor", return_value=None
+        ):
             result = self.manager.switch_profile("work")
 
         # Verify the switch was successful
@@ -157,8 +159,8 @@ class TestProfileManager:
         # Mock the recreation to return a new processor
         with patch.object(
             self.component_factory,
-            'recreate_speech_processor',
-            return_value=new_speech_processor
+            "recreate_speech_processor",
+            return_value=new_speech_processor,
         ) as mock_recreate:
             self.manager.switch_profile("work")
 
@@ -175,7 +177,9 @@ class TestProfileManager:
         """Test profile switch when no current config exists."""
         self.manager.current_config = None
 
-        with patch.object(self.component_factory, 'recreate_speech_processor', return_value=None):
+        with patch.object(
+            self.component_factory, "recreate_speech_processor", return_value=None
+        ):
             self.manager.switch_profile("work")
 
         # Should load current config for comparison
@@ -186,7 +190,9 @@ class TestProfileManager:
         # Create manager without callback
         manager = ProfileManager(self.config_manager, self.component_factory, None)
 
-        with patch.object(self.component_factory, 'recreate_speech_processor', return_value=None):
+        with patch.object(
+            self.component_factory, "recreate_speech_processor", return_value=None
+        ):
             # Should not raise exception
             result = manager.switch_profile("work")
             assert result.general.model == "large-v3"
@@ -197,7 +203,9 @@ class TestProfileManager:
         assert self.manager.get_current_profile_name() == "default"
 
         # Switch profile
-        with patch.object(self.component_factory, 'recreate_speech_processor', return_value=None):
+        with patch.object(
+            self.component_factory, "recreate_speech_processor", return_value=None
+        ):
             self.manager.switch_profile("gaming")
 
         # Should return new profile
@@ -230,9 +238,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(
-                sample_rate=16000, chunk_size=512, vad_filter=True
-            ),
+            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
             profiles={},
         )
 
@@ -277,7 +283,9 @@ class TestProfileManager:
     def test_delete_profile_current_profile(self):
         """Test deleting the current profile."""
         # Switch to gaming profile
-        with patch.object(self.component_factory, 'recreate_speech_processor', return_value=None):
+        with patch.object(
+            self.component_factory, "recreate_speech_processor", return_value=None
+        ):
             self.manager.switch_profile("gaming")
 
         # Delete current profile
@@ -287,7 +295,9 @@ class TestProfileManager:
         # Should be back on default
         assert self.manager.get_current_profile_name() == "default"
         # Callback should have been called
-        assert self.on_config_changed.call_count == 2  # Once for switch, once for delete
+        assert (
+            self.on_config_changed.call_count == 2
+        )  # Once for switch, once for delete
 
     def test_delete_profile_nonexistent(self):
         """Test deleting non-existent profile."""
@@ -373,9 +383,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(
-                sample_rate=16000, chunk_size=512, vad_filter=True
-            ),
+            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
             profiles={},
         )
 
@@ -383,7 +391,9 @@ class TestProfileManager:
         assert create_result is True
 
         # Switch to profile
-        with patch.object(self.component_factory, 'recreate_speech_processor', return_value=None):
+        with patch.object(
+            self.component_factory, "recreate_speech_processor", return_value=None
+        ):
             switch_result = self.manager.switch_profile("test_lifecycle")
         assert switch_result.general.language == "ja"
 
@@ -398,7 +408,7 @@ class TestProfileManager:
         another_manager = ProfileManager(
             self.config_manager,
             ComponentFactory(self.default_config, self.config_manager),
-            Mock()
+            Mock(),
         )
 
         # Both should see same profiles

@@ -6,7 +6,6 @@ Provides specific error types for better error handling and user feedback.
 """
 
 
-
 class AudioError(Exception):
     """Base exception for all audio-related errors."""
 

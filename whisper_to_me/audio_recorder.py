@@ -5,7 +5,6 @@ Provides real-time audio recording functionality with optimized latency
 for speech recognition applications.
 """
 
-
 import numpy as np
 import sounddevice as sd
 
