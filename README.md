@@ -134,6 +134,150 @@ whisper-to-me --tap-mode
 whisper-to-me --tap-mode --discard-key "<delete>"
 ```
 
+## Configuration
+
+Whisper-to-Me supports persistent configuration through a TOML config file and multiple profiles for different use cases.
+
+### Configuration File
+
+**Location**: `~/.config/whisper-to-me/config.toml`
+
+View the config file location:
+```bash
+whisper-to-me --config-path
+```
+
+### Configuration Sections
+
+#### General Settings (`[general]`)
+
+- **`model`**: Whisper model size
+  - Options: `"tiny"`, `"base"`, `"small"`, `"medium"`, `"large-v3"` (default)
+  - Affects: Transcription accuracy vs speed trade-off
+
+- **`device`**: Processing device
+  - Options: `"cpu"`, `"cuda"` (default)
+  - Affects: Transcription speed (GPU acceleration)
+
+- **`language`**: Target language
+  - Options: `"auto"` (default), `"en"`, `"es"`, `"fr"`, etc.
+  - Affects: Transcription accuracy for specific languages
+
+- **`debug`**: Debug mode
+  - Options: `true`, `false` (default)
+  - Affects: Saves audio files for troubleshooting
+
+#### Recording Settings (`[recording]`)
+
+- **`mode`**: Recording mode
+  - Options: `"push-to-talk"` (default), `"tap-mode"`
+  - Affects: How recording is triggered
+
+- **`trigger_key`**: Key combination to trigger recording
+  - Default: `"<scroll_lock>"`
+  - Examples: `"<caps_lock>"`, `"<ctrl>+<shift>+r"`, `"<alt>+<space>"`
+
+- **`discard_key`**: Key to discard recording in tap mode
+  - Default: `"<esc>"`
+  - Options: Single keys like `"<delete>"`, `"<backspace>"`
+
+- **`audio_device`**: Audio input device ID
+  - Default: `""` (system default)
+  - Use `--list-devices` to see available devices
+
+#### UI Settings (`[ui]`)
+
+- **`use_tray`**: System tray integration
+  - Options: `true` (default), `false`
+  - Affects: Shows microphone icon in system tray
+
+#### Advanced Settings (`[advanced]`)
+
+- **`sample_rate`**: Audio sample rate
+  - Default: `16000` Hz
+  - Affects: Audio quality and processing speed
+
+- **`chunk_size`**: Audio processing chunk size
+  - Default: `512`
+  - Affects: Real-time processing performance
+
+- **`vad_filter`**: Voice Activity Detection filter
+  - Default: `true`
+  - Affects: Noise filtering during recording
+
+### Configuration Profiles
+
+Create and manage multiple configuration profiles for different use cases:
+
+#### Profile Management
+
+```bash
+# List available profiles
+whisper-to-me --list-profiles
+
+# Use specific profile
+whisper-to-me --profile work
+
+# Create new profile from current settings
+whisper-to-me --model tiny --device cpu --create-profile quick
+```
+
+#### Example Profile Configuration
+
+```toml
+[general]
+model = "large-v3"
+device = "cuda"
+language = "auto"
+debug = false
+last_profile = "default"
+
+[recording]
+mode = "push-to-talk"
+trigger_key = "<scroll_lock>"
+discard_key = "<esc>"
+audio_device = ""
+
+[ui]
+use_tray = true
+
+[advanced]
+sample_rate = 16000
+chunk_size = 512
+vad_filter = true
+
+# Work profile - English only, medium model, caps lock trigger
+[profiles.work]
+[profiles.work.general]
+language = "en"
+model = "medium"
+[profiles.work.recording]
+trigger_key = "<caps_lock>"
+
+# Spanish profile - Spanish language, large model
+[profiles.spanish]
+[profiles.spanish.general]
+language = "es"
+model = "large-v3"
+
+# Quick profile - Fast transcription, CPU only
+[profiles.quick]
+[profiles.quick.general]
+model = "tiny"
+device = "cpu"
+[profiles.quick.recording]
+mode = "tap-mode"
+```
+
+### Configuration Priority
+
+Settings are applied in this order (highest to lowest priority):
+
+1. Command line arguments
+2. Profile settings
+3. Base configuration file
+4. Default values
+
 ### System Tray
 
 The system tray icon shows:
