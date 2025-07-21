@@ -28,6 +28,9 @@ class TrayIcon:
         on_profile_change: Optional[Callable[[str], None]] = None,
         get_profiles: Optional[Callable[[], List[str]]] = None,
         get_current_profile: Optional[Callable[[], str]] = None,
+        on_device_change: Optional[Callable[[int], None]] = None,
+        get_devices: Optional[Callable[[], List[dict]]] = None,
+        get_current_device: Optional[Callable[[], Optional[dict]]] = None,
     ):
         """
         Initialize the tray icon.
@@ -37,12 +40,18 @@ class TrayIcon:
             on_profile_change: Callback function to call when profile is changed
             get_profiles: Function to get list of available profiles
             get_current_profile: Function to get current active profile
+            on_device_change: Callback function to call when audio device is changed
+            get_devices: Function to get list of available audio devices
+            get_current_device: Function to get current audio device info
         """
         self.icon: Optional[pystray.Icon] = None
         self.on_quit_callback = on_quit
         self.on_profile_change_callback = on_profile_change
         self.get_profiles_callback = get_profiles
         self.get_current_profile_callback = get_current_profile
+        self.on_device_change_callback = on_device_change
+        self.get_devices_callback = get_devices
+        self.get_current_device_callback = get_current_device
         self.is_recording = False
         self._running = False
         self.current_profile = "default"
@@ -172,6 +181,11 @@ class TrayIcon:
             self.on_profile_change_callback(profile_name)
         self.update_profile(profile_name)
 
+    def on_device_select(self, icon, item, device_id: int):
+        """Handle audio device selection from menu."""
+        if self.on_device_change_callback:
+            self.on_device_change_callback(device_id)
+
     def on_quit(self, icon, item):
         """Handle quit menu item."""
         self.stop()
@@ -196,13 +210,31 @@ class TrayIcon:
         if self.get_profiles_callback:
             profiles = self.get_profiles_callback()
 
+        # Get available devices for menu
+        devices = []
+        current_device = None
+        if self.get_devices_callback:
+            devices = self.get_devices_callback()
+        if self.get_current_device_callback:
+            current_device = self.get_current_device_callback()
+
         menu_items = [
             pystray.MenuItem(
                 "Whisper-to-Me", self.on_activate, default=True, enabled=False
             ),
             pystray.MenuItem(f"Profile: {current_profile}", None, enabled=False),
-            pystray.Menu.SEPARATOR,
         ]
+
+        # Add current device info if available
+        if current_device:
+            device_name = current_device.get("name", "Unknown")
+            if len(device_name) > 30:  # Truncate long device names
+                device_name = device_name[:27] + "..."
+            menu_items.append(
+                pystray.MenuItem(f"Device: {device_name}", None, enabled=False)
+            )
+
+        menu_items.append(pystray.Menu.SEPARATOR)
 
         # Add profile switching options if multiple profiles exist
         if len(profiles) > 1:
@@ -218,6 +250,78 @@ class TrayIcon:
             )
             menu_items.append(pystray.Menu.SEPARATOR)
 
+        # Add device switching options if devices are available
+        if devices and len(devices) > 1:
+            # Group devices by host API
+            devices_by_hostapi = {}
+            for device in devices:
+                hostapi_name = device.get("hostapi_name", "Unknown")
+                if hostapi_name not in devices_by_hostapi:
+                    devices_by_hostapi[hostapi_name] = []
+                devices_by_hostapi[hostapi_name].append(device)
+
+            # Create device submenu grouped by host API
+            device_menu_items = []
+
+            # Sort host APIs for consistent ordering
+            for hostapi_name in sorted(devices_by_hostapi.keys()):
+                hostapi_devices = devices_by_hostapi[hostapi_name]
+
+                # If only one host API, don't create submenus
+                if len(devices_by_hostapi) == 1:
+                    for device in hostapi_devices:
+                        device_name = device.get(
+                            "name", f"Device {device.get('id', '?')}"
+                        )
+                        if len(device_name) > 40:
+                            device_name = device_name[:37] + "..."
+
+                        is_current = current_device and device.get(
+                            "id"
+                        ) == current_device.get("id")
+                        display_name = f"✓ {device_name}" if is_current else device_name
+
+                        device_menu_items.append(
+                            pystray.MenuItem(
+                                display_name,
+                                self._create_device_switch_handler(device.get("id")),
+                            )
+                        )
+                else:
+                    # Create submenu for each host API
+                    hostapi_menu_items = []
+                    for device in hostapi_devices:
+                        device_name = device.get(
+                            "name", f"Device {device.get('id', '?')}"
+                        )
+                        if len(device_name) > 35:  # Shorter for nested menus
+                            device_name = device_name[:32] + "..."
+
+                        is_current = current_device and device.get(
+                            "id"
+                        ) == current_device.get("id")
+                        display_name = f"✓ {device_name}" if is_current else device_name
+
+                        hostapi_menu_items.append(
+                            pystray.MenuItem(
+                                display_name,
+                                self._create_device_switch_handler(device.get("id")),
+                            )
+                        )
+
+                    device_menu_items.append(
+                        pystray.MenuItem(
+                            hostapi_name, pystray.Menu(*hostapi_menu_items)
+                        )
+                    )
+
+            menu_items.append(
+                pystray.MenuItem(
+                    "Select Audio Device", pystray.Menu(*device_menu_items)
+                )
+            )
+            menu_items.append(pystray.Menu.SEPARATOR)
+
         menu_items.append(pystray.MenuItem("Quit", self.on_quit))
 
         return pystray.Menu(*menu_items)
@@ -227,6 +331,14 @@ class TrayIcon:
 
         def handler(icon, item):
             self.on_profile_select(icon, item, profile_name)
+
+        return handler
+
+    def _create_device_switch_handler(self, device_id: int):
+        """Create a handler for device switching."""
+
+        def handler(icon, item):
+            self.on_device_select(icon, item, device_id)
 
         return handler
 

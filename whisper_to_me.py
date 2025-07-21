@@ -63,7 +63,9 @@ class WhisperToMe:
         self.listener = None
         self.trigger_hotkey = None
         self.discard_hotkey = None
-        self.trigger_pressed = False  # Track if trigger combination is currently pressed
+        self.trigger_pressed = (
+            False  # Track if trigger combination is currently pressed
+        )
 
         # Extract current settings from config
         self._update_from_config()
@@ -75,9 +77,32 @@ class WhisperToMe:
         )
         print(f"Using profile: {self.config_manager.get_current_profile()}")
 
-        self.audio_recorder = AudioRecorder(
-            device_id=self.config.recording.audio_device
-        )
+        # Initialize audio recorder with fallback for invalid devices
+        try:
+            self.audio_recorder = AudioRecorder(
+                device_id=self.config.recording.audio_device
+            )
+        except Exception as e:
+            if self.config.recording.audio_device is not None:
+                print(
+                    f"❌ Audio device {self.config.recording.audio_device} failed to initialize:"
+                )
+                print(f"   Error: {e}")
+
+                # Show available devices to help user
+                available_devices = AudioRecorder.list_input_devices()
+                if available_devices:
+                    print("📱 Available audio devices:")
+                    for device in available_devices:
+                        print(f"   {device['id']}: {device['name']}")
+
+                print("🔄 Falling back to default audio device...")
+                self.config.recording.audio_device = None
+                self.audio_recorder = AudioRecorder(device_id=None)
+            else:
+                # Even default device failed
+                print(f"❌ Failed to initialize default audio device: {e}")
+                raise
         self.speech_processor = SpeechProcessor(
             model_size=self.config.general.model,
             device=self.config.general.device,
@@ -94,6 +119,9 @@ class WhisperToMe:
                 on_profile_change=self.switch_profile,
                 get_profiles=self.config_manager.get_profile_names,
                 get_current_profile=self.config_manager.get_current_profile,
+                on_device_change=self.switch_audio_device,
+                get_devices=self.get_available_devices,
+                get_current_device=self.get_current_device,
             )
             self.tray_icon.start()
 
@@ -102,7 +130,9 @@ class WhisperToMe:
 
         if self.config.recording.mode == "tap-mode":
             print(f"✓ Ready! Tap {trigger_display} to start/stop recording")
-            print(f"  Press {self.config.recording.discard_key} while recording to discard")
+            print(
+                f"  Press {self.config.recording.discard_key} while recording to discard"
+            )
         else:
             print(f"✓ Ready! Press and hold {trigger_display} to record")
         print("Press Ctrl+C in terminal to exit")
@@ -113,7 +143,7 @@ class WhisperToMe:
         # Create HotKey objects for trigger and discard keys
         trigger_keys = keyboard.HotKey.parse(self.config.recording.trigger_key)
         discard_keys = keyboard.HotKey.parse(self.config.recording.discard_key)
-        
+
         # Create HotKey instances with appropriate callbacks
         if self.config.recording.mode == "tap-mode":
             self.trigger_hotkey = keyboard.HotKey(trigger_keys, self._on_trigger_tap)
@@ -173,6 +203,67 @@ class WhisperToMe:
 
         print("✓ Profile switch completed")
 
+    def get_available_devices(self):
+        """Get list of available audio input devices."""
+        return AudioRecorder.list_input_devices()
+
+    def get_current_device(self):
+        """Get current audio device info."""
+        if self.config.recording.audio_device is None:
+            return AudioRecorder.get_default_input_device()
+        else:
+            devices = AudioRecorder.list_input_devices()
+            for device in devices:
+                if device["id"] == self.config.recording.audio_device:
+                    return device
+            return None
+
+    def switch_audio_device(self, device_id: int):
+        """Switch to a different audio device."""
+        devices = AudioRecorder.list_input_devices()
+        target_device = None
+
+        for device in devices:
+            if device["id"] == device_id:
+                target_device = device
+                break
+
+        if not target_device:
+            print(f"❌ Audio device {device_id} not found")
+            return
+
+        print(f"🎤 Switching to audio device: {target_device['name']}")
+
+        try:
+            # Test the device first
+            test_recorder = AudioRecorder(device_id=device_id)
+
+            # If successful, update config and replace recorder
+            self.config.recording.audio_device = device_id
+            self.audio_recorder = test_recorder
+
+            # Save config change
+            self.config_manager.save_config()
+
+            # Refresh tray menu to update device list
+            if hasattr(self, "tray_icon") and self.tray_icon:
+                self.tray_icon.refresh_menu()
+
+            print("✓ Audio device switch completed")
+
+        except Exception as e:
+            print(f"❌ Failed to switch to device '{target_device['name']}':")
+            print(f"   Error: {e}")
+
+            # Suggest compatible sample rate if it's a sample rate issue
+            if "sample rate" in str(e).lower() or "PaErrorCode -9997" in str(e):
+                print(
+                    f"   Device supports: {target_device.get('default_samplerate', 'unknown')} Hz"
+                )
+                print("   Try using a device that supports 16000 Hz sample rate")
+
+            print("   Keeping current audio device.")
+
     def _on_trigger_tap(self):
         """Handle trigger key combination in tap mode."""
         if not self.is_recording:
@@ -218,7 +309,7 @@ class WhisperToMe:
             self.trigger_hotkey.release(canonical_key)
         if self.discard_hotkey:
             self.discard_hotkey.release(canonical_key)
-            
+
         # In push-to-talk mode, stop recording when any key is released after trigger was pressed
         if not self.tap_mode and self.trigger_pressed and self.is_recording:
             self.trigger_pressed = False
@@ -440,14 +531,25 @@ Examples:
         devices = AudioRecorder.list_input_devices()
         default = AudioRecorder.get_default_input_device()
 
+        # Group devices by host API
+        devices_by_hostapi = {}
         for device in devices:
-            default_mark = (
-                " (default)" if default and device["id"] == default["id"] else ""
-            )
-            print(f"  {device['id']}: {device['name']}{default_mark}")
-            print(
-                f"      Channels: {device['channels']}, Sample rate: {device['default_samplerate']}"
-            )
+            hostapi_name = device.get("hostapi_name", "Unknown")
+            if hostapi_name not in devices_by_hostapi:
+                devices_by_hostapi[hostapi_name] = []
+            devices_by_hostapi[hostapi_name].append(device)
+
+        # Display devices grouped by host API
+        for hostapi_name in sorted(devices_by_hostapi.keys()):
+            print(f"\n{hostapi_name}:")
+            for device in devices_by_hostapi[hostapi_name]:
+                default_mark = (
+                    " (default)" if default and device["id"] == default["id"] else ""
+                )
+                print(f"  {device['id']}: {device['name']}{default_mark}")
+                print(
+                    f"      Channels: {device['channels']}, Sample rate: {device['default_samplerate']}"
+                )
         return
 
     # Load base configuration

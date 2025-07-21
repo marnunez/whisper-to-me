@@ -375,7 +375,6 @@ class ConfigManager:
         """Get the path to the configuration file."""
         return str(self.config_file)
 
-
     def parse_key_combination(self, key_str: str) -> set[keyboard.Key]:
         """Parse a key combination string into a set of pynput Key objects.
 
@@ -385,12 +384,14 @@ class ConfigManager:
         try:
             parsed_keys = keyboard.HotKey.parse(key_str)
             return set(parsed_keys)
-        except ValueError as e:
-            raise ValueError(f"Invalid key combination: '{key_str}'. Use format like '<ctrl>+<shift>+r', '<scroll_lock>', or 'a'")
+        except ValueError:
+            raise ValueError(
+                f"Invalid key combination: '{key_str}'. Use format like '<ctrl>+<shift>+r', '<scroll_lock>', or 'a'"
+            )
 
     def parse_key_string(self, key_str: str) -> keyboard.Key:
         """Parse a single key string into a pynput Key object.
-        
+
         Uses the same format as parse_key_combination but ensures only single keys.
         """
         parsed_keys = self.parse_key_combination(key_str)

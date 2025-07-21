@@ -53,16 +53,16 @@ class TestKeyCombinations:
         # Invalid key name
         with pytest.raises(ValueError, match="Invalid key combination"):
             self.config_manager.parse_key_combination("<invalid_key>")
-        
+
         # Old format should fail
         with pytest.raises(ValueError, match="Invalid key combination"):
             self.config_manager.parse_key_combination("ctrl+shift+r")
-        
+
         # Empty string
         with pytest.raises(ValueError, match="Invalid key combination"):
             self.config_manager.parse_key_combination("")
 
-        # Invalid combination  
+        # Invalid combination
         with pytest.raises(ValueError, match="Invalid key combination"):
             self.config_manager.parse_key_combination("<ctrl>+asdf")
 
@@ -86,17 +86,18 @@ class TestKeyCombinations:
         """Test that parsed keys work with pynput HotKey."""
         # Test that our parsing is compatible with HotKey
         trigger_keys = self.config_manager.parse_key_combination("<ctrl>+<shift>+r")
-        
+
         # Should be able to create a HotKey with parsed keys
         callback_called = False
+
         def test_callback():
             nonlocal callback_called
             callback_called = True
-            
+
         # This should not raise an exception
         hotkey = keyboard.HotKey(trigger_keys, test_callback)
         assert hotkey is not None
-        
+
         # Test single key too
         single_keys = self.config_manager.parse_key_combination("<esc>")
         hotkey2 = keyboard.HotKey(single_keys, test_callback)
