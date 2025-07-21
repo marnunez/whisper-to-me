@@ -5,6 +5,7 @@ Provides TOML-based configuration management with profile support for
 Whisper-to-Me application.
 """
 
+import os
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -96,10 +97,24 @@ class ConfigManager:
     - Validation and fallback to defaults
     """
 
-    def __init__(self):
-        """Initialize configuration manager."""
-        self.config_dir = Path.home() / ".config" / "whisper-to-me"
-        self.config_file = self.config_dir / "config.toml"
+    def __init__(self, config_file: str | None = None):
+        """Initialize configuration manager.
+
+        Args:
+            config_file: Path to custom configuration file. If None, uses default location.
+        """
+        if config_file:
+            self.config_file = Path(config_file)
+            self.config_dir = self.config_file.parent
+        else:
+            # Use XDG_CONFIG_HOME if set, otherwise use default
+            xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+            if xdg_config_home:
+                self.config_dir = Path(xdg_config_home) / "whisper-to-me"
+            else:
+                self.config_dir = Path.home() / ".config" / "whisper-to-me"
+            self.config_file = self.config_dir / "config.toml"
+
         self.current_profile = DEFAULT_PROFILE
         self._config: AppConfig | None = None
         self._config_differ = ConfigSectionDiffer()

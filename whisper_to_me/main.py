@@ -454,9 +454,6 @@ def main():
     """
     import argparse
 
-    # Initialize config manager first to determine debug level
-    config_manager = ConfigManager()
-
     # Setup logger early (will be reconfigured after arg parsing)
     setup_logger(min_level=LogLevel.INFO)
     logger = get_logger()
@@ -551,6 +548,11 @@ Examples:
         help="Show configuration file path and exit",
     )
     parser.add_argument(
+        "--config-file",
+        type=str,
+        help="Path to custom configuration file (default: $XDG_CONFIG_HOME/whisper-to-me/config.toml or ~/.config/whisper-to-me/config.toml)",
+    )
+    parser.add_argument(
         "--trailing-space",
         action="store_true",
         help="Add a trailing space after transcribed text",
@@ -562,6 +564,9 @@ Examples:
     if args.debug:
         setup_logger(min_level=LogLevel.DEBUG)
         logger = get_logger()
+
+    # Initialize config manager with custom config file if provided
+    config_manager = ConfigManager(args.config_file)
 
     # Handle configuration-only commands
     if args.config_path:

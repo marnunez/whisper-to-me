@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 from whisper_to_me import (
     AdvancedConfig,
@@ -284,3 +285,144 @@ class TestConfigManager:
         assert applied.advanced.sample_rate == 44100
         assert applied.advanced.chunk_size == 2048
         assert applied.advanced.vad_filter is False
+
+    def test_custom_config_file_location(self):
+        """Test using a custom config file location."""
+        # Create a custom config file path
+        custom_config_path = Path(self.temp_dir) / "custom" / "config.toml"
+
+        # Create ConfigManager with custom path
+        custom_manager = ConfigManager(config_file=str(custom_config_path))
+
+        # Verify the config file is created at custom location
+        assert custom_manager.config_file == custom_config_path
+        assert custom_manager.config_dir == custom_config_path.parent
+
+        # Load config to trigger file creation
+        config = custom_manager.load_config()
+        assert custom_config_path.exists()
+
+        # Create a profile
+        config.general.model = "tiny"
+        custom_manager.create_profile("custom_profile", config)
+
+        # Create new manager with same custom path and verify profile exists
+        another_manager = ConfigManager(config_file=str(custom_config_path))
+        profiles = another_manager.get_profile_names()
+        assert "custom_profile" in profiles
+
+    def test_xdg_config_home_support(self):
+        """Test that XDG_CONFIG_HOME is respected when no custom config is specified."""
+        # Set XDG_CONFIG_HOME
+        xdg_dir = Path(self.temp_dir) / "xdg_config"
+        os.environ["XDG_CONFIG_HOME"] = str(xdg_dir)
+
+        try:
+            # Create new ConfigManager
+            xdg_manager = ConfigManager()
+
+            # Verify it uses XDG_CONFIG_HOME
+            expected_path = xdg_dir / "whisper-to-me" / "config.toml"
+            assert xdg_manager.config_file == expected_path
+
+            # Load config to create the file
+            xdg_manager.load_config()
+            assert expected_path.exists()
+        finally:
+            # Clean up XDG_CONFIG_HOME
+            if "XDG_CONFIG_HOME" in os.environ:
+                del os.environ["XDG_CONFIG_HOME"]
+
+    def test_profile_creation_validation(self):
+        """Test profile creation with various configurations."""
+        self.config_manager.load_config()
+
+        # Test creating profile with minimal changes
+        minimal = AppConfig(
+            general=GeneralConfig(
+                model="tiny",  # Only change model
+                device="cuda",
+                language="auto",
+                debug=False,
+                last_profile="default",
+            ),
+            recording=RecordingConfig(
+                mode="push-to-talk",
+                trigger_key="<scroll_lock>",
+                discard_key="esc",
+                audio_device=None,
+            ),
+            ui=UIConfig(use_tray=True),
+            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+            profiles={},
+        )
+
+        assert self.config_manager.create_profile("minimal_change", minimal) is True
+
+        # Verify the profile only stores the difference
+        config_dict = self.config_manager._config.profiles["minimal_change"]
+        # Should have the general section with model change
+        assert "general" in config_dict
+        assert config_dict["general"]["model"] == "tiny"
+        # The profile stores minimal differences from the base config
+
+    def test_profile_creation_with_empty_name(self):
+        """Test that profile creation handles edge cases."""
+        config = self.config_manager.load_config()
+
+        # Test with empty name (should still work, though not recommended)
+        assert self.config_manager.create_profile("", config) is True
+        assert "" in self.config_manager.get_profile_names()
+
+        # Test with whitespace name
+        assert self.config_manager.create_profile("   ", config) is True
+        assert "   " in self.config_manager.get_profile_names()
+
+    def test_profile_overwrite(self):
+        """Test that creating a profile with existing name overwrites it."""
+        config = self.config_manager.load_config()
+
+        # Create initial profile
+        config.general.model = "small"
+        assert self.config_manager.create_profile("overwrite_test", config) is True
+
+        # Apply and verify
+        applied = self.config_manager.apply_profile("overwrite_test")
+        assert applied.general.model == "small"
+
+        # Overwrite with different config
+        config.general.model = "large-v3"
+        config.general.language = "es"
+        assert self.config_manager.create_profile("overwrite_test", config) is True
+
+        # Apply and verify it was overwritten
+        applied = self.config_manager.apply_profile("overwrite_test")
+        assert applied.general.model == "large-v3"
+        assert applied.general.language == "es"
+
+    def test_profile_with_special_characters(self):
+        """Test profile names with special characters."""
+        config = self.config_manager.load_config()
+
+        # Test various special character profile names
+        special_names = [
+            "profile-with-dashes",
+            "profile_with_underscores",
+            "profile.with.dots",
+            "profile@work",
+            "profile#1",
+            "profile (home)",
+            "profile[test]",
+            "über-profile",
+            "профиль",  # Cyrillic
+            "プロファイル",  # Japanese
+        ]
+
+        for name in special_names:
+            config.general.model = "tiny"
+            assert self.config_manager.create_profile(name, config) is True
+            assert name in self.config_manager.get_profile_names()
+
+            # Verify we can apply the profile
+            applied = self.config_manager.apply_profile(name)
+            assert applied.general.model == "tiny"
