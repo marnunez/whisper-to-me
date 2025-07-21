@@ -625,7 +625,7 @@ Examples:
     if args.audio_device_name:
         config.recording.audio_device = {
             "name": args.audio_device_name,
-            "hostapi_name": args.audio_device_hostapi
+            "hostapi_name": args.audio_device_hostapi,
         }
 
     if args.tap_mode and args.push_to_talk:

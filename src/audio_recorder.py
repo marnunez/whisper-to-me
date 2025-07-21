@@ -111,9 +111,17 @@ class AudioRecorder:
         )
         # Start the stream immediately but don't record yet
         self.stream.start()
-        device_name = (
-            "default" if self.device_id is None else f"device {self.device_id}"
-        )
+
+        # Get actual device name for better user feedback
+        if self.device_id is None:
+            device_name = "default"
+        else:
+            try:
+                device_info = sd.query_devices(self.device_id)
+                device_name = device_info["name"]
+            except Exception:
+                device_name = f"device {self.device_id}"
+
         print(
             f"Audio stream started and ready for instant recording using {device_name}"
         )
@@ -279,7 +287,9 @@ class AudioRecorder:
         }
 
     @staticmethod
-    def find_device_by_config(device_config: Optional[Dict[str, str]]) -> Optional[Dict[str, Any]]:
+    def find_device_by_config(
+        device_config: Optional[Dict[str, str]],
+    ) -> Optional[Dict[str, Any]]:
         """
         Find an audio device by its stable configuration (name + hostapi).
 
@@ -321,7 +331,4 @@ class AudioRecorder:
         Returns:
             Dict with 'name' and 'hostapi_name' keys
         """
-        return {
-            "name": device["name"], 
-            "hostapi_name": device["hostapi_name"]
-        }
+        return {"name": device["name"], "hostapi_name": device["hostapi_name"]}

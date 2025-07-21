@@ -139,7 +139,9 @@ class ConfigManager:
         # Remove None values for TOML compatibility
         def remove_none_values(obj):
             if isinstance(obj, dict):
-                return {k: remove_none_values(v) for k, v in obj.items() if v is not None}
+                return {
+                    k: remove_none_values(v) for k, v in obj.items() if v is not None
+                }
             elif isinstance(obj, list):
                 return [remove_none_values(item) for item in obj]
             else:
@@ -166,7 +168,6 @@ class ConfigManager:
     def _validate_config(self, config_dict: Dict[str, Any]) -> Dict[str, Any]:
         """Validate and sanitize configuration."""
         default = self._get_default_config()
-
 
         # Ensure all required sections exist
         for section in ["general", "recording", "ui", "advanced"]:
