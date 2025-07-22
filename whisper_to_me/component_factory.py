@@ -115,6 +115,8 @@ class ComponentFactory:
             else None,
             vad_filter=self.config.advanced.vad_filter,
             initial_prompt=self.config.advanced.initial_prompt,
+            min_silence_duration_ms=self.config.advanced.min_silence_duration_ms,
+            speech_pad_ms=self.config.advanced.speech_pad_ms,
         )
 
     def create_keystroke_handler(self) -> KeystrokeHandler:
@@ -187,6 +189,10 @@ class ComponentFactory:
             or old_config.general.model != new_config.general.model
             or old_config.general.device != new_config.general.device
             or old_config.advanced.initial_prompt != new_config.advanced.initial_prompt
+            or old_config.advanced.vad_filter != new_config.advanced.vad_filter
+            or old_config.advanced.min_silence_duration_ms
+            != new_config.advanced.min_silence_duration_ms
+            or old_config.advanced.speech_pad_ms != new_config.advanced.speech_pad_ms
         ):
             if old_config.general.language != new_config.general.language:
                 self.logger.info(

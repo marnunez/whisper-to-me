@@ -56,6 +56,8 @@ class AdvancedConfig:
     chunk_size: int = 512
     vad_filter: bool = True
     initial_prompt: str = ""
+    min_silence_duration_ms: int = 2000
+    speech_pad_ms: int = 400
 
 
 @dataclass
@@ -179,6 +181,8 @@ class ConfigManager:
                 "chunk_size": 512,
                 "vad_filter": True,
                 "initial_prompt": "",
+                "min_silence_duration_ms": 2000,
+                "speech_pad_ms": 400,
             },
             PROFILES_SECTION: {},
         }

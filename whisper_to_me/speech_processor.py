@@ -31,6 +31,8 @@ class SpeechProcessor:
         language: str | None = None,
         vad_filter: bool = True,
         initial_prompt: str = "",
+        min_silence_duration_ms: int = 2000,
+        speech_pad_ms: int = 400,
     ):
         """
         Initialize the speech processor.
@@ -41,20 +43,26 @@ class SpeechProcessor:
             language: Target language for transcription (None for auto-detection, en, es, fr, etc.)
             vad_filter: Enable Voice Activity Detection to filter silence
             initial_prompt: Initial prompt to guide transcription (max 224 tokens)
+            min_silence_duration_ms: Minimum duration of silence to split segments (in milliseconds)
+            speech_pad_ms: Amount of padding to keep around detected speech (in milliseconds)
         """
         self.model_size = model_size
         self.device = device
         self.language = language
         self.vad_filter = vad_filter
         self.initial_prompt = initial_prompt
+        self.min_silence_duration_ms = min_silence_duration_ms
+        self.speech_pad_ms = speech_pad_ms
         self.model: WhisperModel | None = None
         self.logger = get_logger()
 
         self._load_model()
 
-        # Validate initial prompt after model is loaded
+        # Log initial prompt if configured
         if self.initial_prompt:
-            self._validate_initial_prompt()
+            self.logger.info(
+                f"Initial prompt configured: {self.initial_prompt[:50]}...", "speech"
+            )
 
     def _load_model(self) -> None:
         try:
@@ -71,8 +79,8 @@ class SpeechProcessor:
             self.logger.error(f"Error loading model: {e}", "model")
             raise
 
-    def _validate_initial_prompt(self) -> None:
-        """Validate initial prompt length using the model's tokenizer."""
+    def _check_initial_prompt_truncation(self, detected_language: str) -> None:
+        """Check if initial prompt was truncated and warn user."""
         if not self.model or not self.initial_prompt:
             return
 
@@ -80,32 +88,33 @@ class SpeechProcessor:
             # Import tokenizer module
             from faster_whisper.tokenizer import Tokenizer
 
-            # Create tokenizer instance
+            # Create tokenizer with detected language
             tokenizer = Tokenizer(
                 self.model.hf_tokenizer,
                 self.model.model.is_multilingual,
                 task="transcribe",
-                language=self.language,
+                language=detected_language,
             )
 
             # Encode with leading space (as faster-whisper does internally)
             tokens = tokenizer.encode(" " + self.initial_prompt.strip())
             token_count = len(tokens)
 
-            if token_count > 224:
+            # Get max_length from the model and calculate threshold
+            max_length = self.model.max_length
+            threshold = max_length // 2
+
+            # Check if it would be truncated
+            if token_count >= threshold:
                 self.logger.warning(
-                    f"Initial prompt has {token_count} tokens, exceeds limit of 224. "
-                    f"Only the last 224 tokens will be used.",
+                    f"Initial prompt has {token_count} tokens, exceeds limit of {threshold - 1}. "
+                    f"Only the first {threshold - 1} tokens are being used.",
                     "prompt",
                 )
-            else:
-                self.logger.debug(
-                    f"Initial prompt validated: {token_count} tokens", "prompt"
-                )
         except Exception as e:
-            # Don't fail if validation fails, just log warning
-            self.logger.warning(
-                f"Could not validate initial prompt token count: {e}", "prompt"
+            # Don't fail if check fails, just log debug
+            self.logger.debug(
+                f"Could not check initial prompt truncation: {e}", "prompt"
             )
 
     def transcribe(self, audio_data: np.ndarray) -> tuple[str, float, str, float]:
@@ -130,18 +139,22 @@ class SpeechProcessor:
             # Add initial prompt if specified
             if self.initial_prompt:
                 transcribe_params["initial_prompt"] = self.initial_prompt
+                self.logger.debug(
+                    f"Using initial_prompt: {self.initial_prompt[:50]}...", "speech"
+                )
 
             if self.vad_filter:
                 transcribe_params.update(
                     {
                         "vad_filter": True,
                         "vad_parameters": {
-                            "min_silence_duration_ms": 2000,  # Allow longer pauses (2 seconds)
-                            "speech_pad_ms": 400,  # Keep more audio around speech
+                            "min_silence_duration_ms": self.min_silence_duration_ms,
+                            "speech_pad_ms": self.speech_pad_ms,
                         },
                     }
                 )
 
+            self.logger.debug(f"Transcribe params: {transcribe_params}", "speech")
             segments, info = self.model.transcribe(audio_data, **transcribe_params)
 
             text_segments = []
@@ -152,6 +165,10 @@ class SpeechProcessor:
                 total_duration = max(total_duration, segment.end)
 
             full_text = " ".join(text_segments).strip()
+
+            # Check if initial_prompt was truncated after we have the detected language
+            if self.initial_prompt and info.language:
+                self._check_initial_prompt_truncation(info.language)
 
             return full_text, total_duration, info.language, info.language_probability
 
@@ -175,7 +192,11 @@ class SpeechProcessor:
                 "temperature": 0.0,
                 "word_timestamps": True,
                 "condition_on_previous_text": False,
-                "vad_filter": True,
+                "vad_filter": self.vad_filter,
+                "vad_parameters": {
+                    "min_silence_duration_ms": self.min_silence_duration_ms,
+                    "speech_pad_ms": self.speech_pad_ms,
+                },
             }
 
             # Only specify language if set (None enables auto-detection)
@@ -185,8 +206,16 @@ class SpeechProcessor:
             # Add initial prompt if specified
             if self.initial_prompt:
                 transcribe_params["initial_prompt"] = self.initial_prompt
+                self.logger.debug(
+                    f"Using initial_prompt: {self.initial_prompt[:50]}...", "speech"
+                )
 
+            self.logger.debug(f"Transcribe params: {transcribe_params}", "speech")
             segments, info = self.model.transcribe(audio_data, **transcribe_params)
+
+            # Check if initial_prompt was truncated after we have the detected language
+            if self.initial_prompt and info.language:
+                self._check_initial_prompt_truncation(info.language)
 
             result = []
             for segment in segments:
@@ -228,4 +257,7 @@ class SpeechProcessor:
             "language": self.language,
             "loaded": self.model is not None,
             "initial_prompt": self.initial_prompt,
+            "vad_filter": self.vad_filter,
+            "min_silence_duration_ms": self.min_silence_duration_ms,
+            "speech_pad_ms": self.speech_pad_ms,
         }

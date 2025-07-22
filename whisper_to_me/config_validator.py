@@ -269,6 +269,15 @@ class ConfigValidator:
         if not isinstance(config.vad_filter, bool):
             raise ValidationError("vad_filter must be a boolean")
 
+        if (
+            not isinstance(config.min_silence_duration_ms, int)
+            or config.min_silence_duration_ms <= 0
+        ):
+            raise ValidationError("min_silence_duration_ms must be a positive integer")
+
+        if not isinstance(config.speech_pad_ms, int) or config.speech_pad_ms < 0:
+            raise ValidationError("speech_pad_ms must be a non-negative integer")
+
         return config
 
     def get_validation_help(self, section_name: str, field_name: str) -> str:

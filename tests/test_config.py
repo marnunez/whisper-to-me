@@ -103,7 +103,13 @@ class TestConfigManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(chunk_size=512, vad_filter=True, initial_prompt=""),
+            advanced=AdvancedConfig(
+                chunk_size=512,
+                vad_filter=True,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
+            ),
             profiles={},
         )
         self.config_manager.create_profile("spanish", spanish_config)
@@ -125,7 +131,11 @@ class TestConfigManager:
             ),
             ui=UIConfig(use_tray=False),
             advanced=AdvancedConfig(
-                chunk_size=1024, vad_filter=False, initial_prompt=""
+                chunk_size=1024,
+                vad_filter=False,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
             ),
             profiles={},
         )
@@ -276,7 +286,11 @@ class TestConfigManager:
             ),
             ui=UIConfig(use_tray=False),
             advanced=AdvancedConfig(
-                chunk_size=2048, vad_filter=False, initial_prompt=""
+                chunk_size=2048,
+                vad_filter=False,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
             ),
             profiles={},
         )
@@ -369,7 +383,13 @@ class TestConfigManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(chunk_size=512, vad_filter=True, initial_prompt=""),
+            advanced=AdvancedConfig(
+                chunk_size=512,
+                vad_filter=True,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
+            ),
             profiles={},
         )
 
@@ -538,3 +558,62 @@ class TestConfigManager:
             # Note: These warnings come from config_differ.py
             assert any("unknown_general_field" in msg for msg in warning_calls)
             assert any("sample_rate" in msg for msg in warning_calls)
+
+    def test_vad_parameters_configuration(self):
+        """Test VAD parameters configuration and profile overrides."""
+        # Load default config
+        config = self.config_manager.load_config()
+
+        # Test default VAD parameters
+        assert config.advanced.min_silence_duration_ms == 2000
+        assert config.advanced.speech_pad_ms == 400
+
+        # Create a profile with custom VAD settings
+        fast_vad_config = AppConfig(
+            general=GeneralConfig(
+                model="tiny",
+                device="cpu",
+                language="auto",
+                debug=False,
+                last_profile="default",
+            ),
+            recording=RecordingConfig(
+                mode="push-to-talk",
+                trigger_key="<scroll_lock>",
+                discard_key="<esc>",
+                audio_device=None,
+            ),
+            ui=UIConfig(use_tray=True),
+            advanced=AdvancedConfig(
+                chunk_size=512,
+                vad_filter=True,
+                initial_prompt="",
+                min_silence_duration_ms=500,  # Fast VAD
+                speech_pad_ms=100,  # Less padding
+            ),
+            profiles={},
+        )
+
+        # Create the profile
+        assert self.config_manager.create_profile("fast_vad", fast_vad_config) is True
+
+        # Apply the profile and verify VAD settings
+        applied = self.config_manager.apply_profile("fast_vad")
+        assert applied.advanced.min_silence_duration_ms == 500
+        assert applied.advanced.speech_pad_ms == 100
+
+        # Create a profile with only VAD overrides
+        self.config_manager._config.profiles["slow_vad"] = {
+            "advanced": {
+                "min_silence_duration_ms": 5000,
+                "speech_pad_ms": 800,
+            }
+        }
+
+        # Apply and verify
+        slow_vad = self.config_manager.apply_profile("slow_vad")
+        assert slow_vad.advanced.min_silence_duration_ms == 5000
+        assert slow_vad.advanced.speech_pad_ms == 800
+        # Other settings should remain default
+        assert slow_vad.advanced.chunk_size == 512
+        assert slow_vad.advanced.vad_filter is True

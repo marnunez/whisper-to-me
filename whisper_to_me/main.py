@@ -123,6 +123,8 @@ class WhisperToMe:
             else None,
             vad_filter=self.config.advanced.vad_filter,
             initial_prompt=self.config.advanced.initial_prompt,
+            min_silence_duration_ms=self.config.advanced.min_silence_duration_ms,
+            speech_pad_ms=self.config.advanced.speech_pad_ms,
         )
         self.keystroke_handler = KeystrokeHandler()
 
@@ -185,16 +187,23 @@ class WhisperToMe:
         old_model = self.config.general.model
         old_device = self.config.general.device
         old_initial_prompt = self.config.advanced.initial_prompt
+        old_vad_filter = self.config.advanced.vad_filter
+        old_min_silence_duration_ms = self.config.advanced.min_silence_duration_ms
+        old_speech_pad_ms = self.config.advanced.speech_pad_ms
 
         self.config = new_config
         self._update_from_config()
 
-        # Update speech processor if language/model/device/initial_prompt changed
+        # Update speech processor if language/model/device/initial_prompt/vad changed
         if (
             old_language != new_config.general.language
             or old_model != new_config.general.model
             or old_device != new_config.general.device
             or old_initial_prompt != new_config.advanced.initial_prompt
+            or old_vad_filter != new_config.advanced.vad_filter
+            or old_min_silence_duration_ms
+            != new_config.advanced.min_silence_duration_ms
+            or old_speech_pad_ms != new_config.advanced.speech_pad_ms
         ):
             if old_language != new_config.general.language:
                 self.logger.info(
@@ -222,6 +231,8 @@ class WhisperToMe:
                 else None,
                 vad_filter=new_config.advanced.vad_filter,
                 initial_prompt=new_config.advanced.initial_prompt,
+                min_silence_duration_ms=new_config.advanced.min_silence_duration_ms,
+                speech_pad_ms=new_config.advanced.speech_pad_ms,
             )
 
         # Save the profile switch
@@ -568,6 +579,16 @@ Examples:
         type=str,
         help="Initial prompt to guide transcription (max 224 tokens)",
     )
+    parser.add_argument(
+        "--min-silence-duration-ms",
+        type=int,
+        help="Minimum duration of silence to split audio segments (in milliseconds, default: 2000)",
+    )
+    parser.add_argument(
+        "--speech-pad-ms",
+        type=int,
+        help="Amount of padding to keep around detected speech (in milliseconds, default: 400)",
+    )
 
     args = parser.parse_args()
 
@@ -700,6 +721,10 @@ Examples:
     # Override advanced settings
     if args.initial_prompt is not None:
         config.advanced.initial_prompt = args.initial_prompt
+    if args.min_silence_duration_ms is not None:
+        config.advanced.min_silence_duration_ms = args.min_silence_duration_ms
+    if args.speech_pad_ms is not None:
+        config.advanced.speech_pad_ms = args.speech_pad_ms
 
     # Handle profile creation
     if args.create_profile:

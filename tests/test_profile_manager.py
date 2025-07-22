@@ -74,7 +74,13 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=False),
-            advanced=AdvancedConfig(chunk_size=1024, vad_filter=False),
+            advanced=AdvancedConfig(
+                chunk_size=1024,
+                vad_filter=False,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
+            ),
             profiles={},
         )
         self.config_manager.create_profile("work", work_config)
@@ -95,7 +101,13 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(
+                chunk_size=512,
+                vad_filter=True,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
+            ),
             profiles={},
         )
         self.config_manager.create_profile("gaming", gaming_config)
@@ -236,7 +248,13 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(
+                chunk_size=512,
+                vad_filter=True,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
+            ),
             profiles={},
         )
 
@@ -381,7 +399,13 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(
+                chunk_size=512,
+                vad_filter=True,
+                initial_prompt="",
+                min_silence_duration_ms=2000,
+                speech_pad_ms=400,
+            ),
             profiles={},
         )
 
