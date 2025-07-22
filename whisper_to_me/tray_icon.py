@@ -244,9 +244,11 @@ class TrayIcon:
         if len(profiles) > 1:
             profile_menu_items = []
             for profile in profiles:
+                is_current = profile == current_profile
+                display_name = f"✓ {profile}" if is_current else profile
                 profile_menu_items.append(
                     pystray.MenuItem(
-                        profile, self._create_profile_switch_handler(profile)
+                        display_name, self._create_profile_switch_handler(profile)
                     )
                 )
             menu_items.append(
