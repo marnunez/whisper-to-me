@@ -76,16 +76,18 @@ with SingleInstance():
 """)
 
         try:
-            # Start first instance
+            # Start first instance with current environment
+            env = os.environ.copy()
             proc1 = subprocess.Popen(
                 [sys.executable, str(test_script)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=env,
             )
 
             # Give it time to acquire lock
-            time.sleep(0.1)
+            time.sleep(0.2)  # Increased wait time for CI
 
             # Try to start second instance
             proc2 = subprocess.Popen(
@@ -93,10 +95,11 @@ with SingleInstance():
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=env,
             )
 
             # Wait for second instance
-            stdout2, stderr2 = proc2.communicate(timeout=2)
+            stdout2, stderr2 = proc2.communicate(timeout=5)
 
             # Second instance should exit with code 1
             assert proc2.returncode == 1

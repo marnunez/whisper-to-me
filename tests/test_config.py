@@ -22,6 +22,12 @@ class TestConfigManager:
         """Set up test environment with temporary config directory."""
         self.temp_dir = tempfile.mkdtemp()
         self.original_home = os.environ.get("HOME")
+        self.original_xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+
+        # Clear XDG_CONFIG_HOME to ensure we use HOME/.config
+        if "XDG_CONFIG_HOME" in os.environ:
+            del os.environ["XDG_CONFIG_HOME"]
+
         os.environ["HOME"] = self.temp_dir
         self.config_manager = ConfigManager()
 
@@ -29,6 +35,13 @@ class TestConfigManager:
         """Clean up test environment."""
         if self.original_home:
             os.environ["HOME"] = self.original_home
+
+        # Restore XDG_CONFIG_HOME if it was set
+        if self.original_xdg_config_home:
+            os.environ["XDG_CONFIG_HOME"] = self.original_xdg_config_home
+        elif "XDG_CONFIG_HOME" in os.environ:
+            del os.environ["XDG_CONFIG_HOME"]
+
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def test_load_default_config(self):
