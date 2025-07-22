@@ -100,6 +100,8 @@ Options:
   --no-tray           Disable system tray icon
   --tap-mode          Use tap-to-start/tap-to-stop instead of push-to-talk
   --discard-key KEY   Key to discard recording in tap mode (default: esc)
+  --min-silence-duration-ms MS  Min silence duration to split segments (default: 2000)
+  --speech-pad-ms MS  Padding around detected speech (default: 400)
   --help              Show help message
 ```
 
@@ -132,6 +134,12 @@ whisper-to-me --tap-mode
 
 # Tap mode with delete key to discard recordings
 whisper-to-me --tap-mode --discard-key "<delete>"
+
+# Fast VAD for quick commands
+whisper-to-me --min-silence-duration-ms 500 --speech-pad-ms 100
+
+# Slow VAD for dictation with pauses
+whisper-to-me --min-silence-duration-ms 5000 --speech-pad-ms 800
 ```
 
 ## Configuration
@@ -193,10 +201,6 @@ whisper-to-me --config-path
 
 #### Advanced Settings (`[advanced]`)
 
-- **`sample_rate`**: Audio sample rate
-  - Default: `16000` Hz
-  - Affects: Audio quality and processing speed
-
 - **`chunk_size`**: Audio processing chunk size
   - Default: `512`
   - Affects: Real-time processing performance
@@ -204,6 +208,16 @@ whisper-to-me --config-path
 - **`vad_filter`**: Voice Activity Detection filter
   - Default: `true`
   - Affects: Noise filtering during recording
+
+- **`min_silence_duration_ms`**: Minimum silence duration to split audio segments
+  - Default: `2000` (2 seconds)
+  - Affects: How long pauses need to be before splitting speech
+  - Lower values = more responsive, higher values = handles longer pauses
+
+- **`speech_pad_ms`**: Padding around detected speech segments
+  - Default: `400` (0.4 seconds)
+  - Affects: How much audio is kept before and after speech
+  - Lower values = tighter cropping, higher values = more context preserved
 
 ### Configuration Profiles
 
@@ -242,9 +256,10 @@ audio_device = ""
 use_tray = true
 
 [advanced]
-sample_rate = 16000
 chunk_size = 512
 vad_filter = true
+min_silence_duration_ms = 2000
+speech_pad_ms = 400
 
 # Work profile - English only, medium model, caps lock trigger
 [profiles.work]
@@ -267,6 +282,18 @@ model = "tiny"
 device = "cpu"
 [profiles.quick.recording]
 mode = "tap-mode"
+
+# Fast VAD profile - Quick response for short commands
+[profiles.fast_vad]
+[profiles.fast_vad.advanced]
+min_silence_duration_ms = 500   # 0.5 second pauses
+speech_pad_ms = 100             # Minimal padding
+
+# Dictation profile - Handles longer pauses in speech
+[profiles.dictation]
+[profiles.dictation.advanced]
+min_silence_duration_ms = 5000  # 5 second pauses
+speech_pad_ms = 800             # More padding for context
 ```
 
 ### Configuration Priority
@@ -299,15 +326,31 @@ The system tray icon shows:
 
 ## Performance Notes
 
-- **First Run**: May take longer as the Whisper model downloads (~1-3GB)
-- **GPU Acceleration**: CUDA significantly improves transcription speed
-- **Model Sizes**:
-  - `tiny`: Fastest, least accurate (~39MB)
-  - `base`: Good balance (~74MB)
-  - `small`: Better accuracy (~244MB)
-  - `medium`: High accuracy (~769MB)
-  - `large-v3`: Best accuracy (~1550MB, default)
-- **Audio Quality**: Better microphone input improves transcription accuracy
+### Model Performance
+
+- **First Run**: Model download required (~39MB to 1.5GB depending on size)
+- **Model Sizes and Trade-offs**:
+  - `tiny`: ~39MB, ~1s latency, lowest accuracy, good for quick notes
+  - `base`: ~74MB, ~1.5s latency, decent accuracy, balanced choice
+  - `small`: ~244MB, ~2s latency, good accuracy, recommended minimum
+  - `medium`: ~769MB, ~3s latency, high accuracy, good for professional use
+  - `large-v3`: ~1550MB, ~5s latency, best accuracy, default choice
+
+### Hardware Optimization
+
+- **GPU (CUDA)**: 5-10x faster than CPU, essential for larger models
+- **CPU Mode**: Viable for tiny/base models, expect higher latency
+- **Memory Requirements**:
+  - Tiny/Base: 1-2GB RAM
+  - Small/Medium: 2-4GB RAM
+  - Large-v3: 4-8GB RAM
+  - Add 2-4GB for CUDA operations
+
+### Audio Optimization
+
+- **Microphone Quality**: USB microphones generally provide better results
+- **Noise Environment**: VAD filter helps but quiet environment is best
+- **Distance**: Keep microphone 6-12 inches from mouth
 
 ### Key Combinations
 
