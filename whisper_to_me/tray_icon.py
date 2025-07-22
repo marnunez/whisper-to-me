@@ -5,9 +5,9 @@ Provides a system tray icon interface for Whisper-to-Me with status indicators
 and menu controls.
 """
 
-import os
 import threading
 from collections.abc import Callable
+from pathlib import Path
 
 import pystray
 from PIL import Image, ImageDraw
@@ -71,18 +71,22 @@ class TrayIcon:
             PIL Image for the tray icon
         """
         # Get the path to the icon
-        icon_dir = os.path.join(
-            os.path.dirname(os.path.dirname(__file__)), "assets", "icons"
-        )
-        icon_path = os.path.join(icon_dir, "mic-32.png")
+        # First try the installed location (inside the package)
+        package_dir = Path(__file__).parent
+        icon_path = package_dir / "assets" / "icons" / "mic-32.png"
+
+        # If not found, try the development location
+        if not icon_path.exists():
+            project_root = package_dir.parent
+            icon_path = project_root / "assets" / "icons" / "mic-32.png"
 
         # Use fallback if icon doesn't exist
-        if not os.path.exists(icon_path):
+        if not icon_path.exists():
             return self._create_fallback_icon(recording)
 
         # Load the icon
         try:
-            icon = Image.open(icon_path).convert("RGBA")
+            icon = Image.open(str(icon_path)).convert("RGBA")
 
             # Create a clean transparent background
             result = Image.new("RGBA", icon.size, (0, 0, 0, 0))

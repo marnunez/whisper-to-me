@@ -91,3 +91,9 @@ force-single-line = false
 combine-as-imports = true
 split-on-trailing-comma = true
 
+[tool.hatch.build.targets.wheel]
+packages = ["whisper_to_me"]
+
+[tool.hatch.build.targets.wheel.sources]
+"assets" = "whisper_to_me/assets"
+
