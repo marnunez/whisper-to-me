@@ -63,12 +63,9 @@ class TestSingleInstance:
     def test_multiple_instances_fail(self):
         """Test that second instance exits with error."""
         # Create a small test script that uses SingleInstance
-        src_path = Path(__file__).parent.parent
         test_script = Path(__file__).parent / "test_instance_script.py"
-        test_script.write_text(f"""
-import sys
+        test_script.write_text("""
 import time
-sys.path.insert(0, '{src_path}')
 from whisper_to_me import SingleInstance
 
 with SingleInstance():
@@ -78,6 +75,10 @@ with SingleInstance():
         try:
             # Start first instance with current environment
             env = os.environ.copy()
+            # Add parent directory to PYTHONPATH for imports
+            src_path = Path(__file__).parent.parent
+            env["PYTHONPATH"] = str(src_path) + os.pathsep + env.get("PYTHONPATH", "")
+
             proc1 = subprocess.Popen(
                 [sys.executable, str(test_script)],
                 stdout=subprocess.PIPE,

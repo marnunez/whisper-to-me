@@ -91,9 +91,12 @@ force-single-line = false
 combine-as-imports = true
 split-on-trailing-comma = true
 
-[tool.hatch.build.targets.wheel]
-packages = ["whisper_to_me"]
+[tool.hatch.build]
+include = [
+    "whisper_to_me/**/*.py",
+    "assets/**/*"
+]
 
-[tool.hatch.build.targets.wheel.sources]
+[tool.hatch.build.force-include]
 "assets" = "whisper_to_me/assets"
 
