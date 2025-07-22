@@ -16,6 +16,9 @@ from whisper_to_me import (
 )
 
 
+@pytest.mark.usefixtures("isolated_xdg_runtime_dir")
+@patch("whisper_to_me.audio_device_manager.sd")
+@patch("whisper_to_me.audio_recorder.sd")
 class TestComponentFactory:
     """Test ComponentFactory functionality."""
 
@@ -31,14 +34,14 @@ class TestComponentFactory:
         self.config_manager = config_manager_with_temp_file
         self.factory = ComponentFactory(self.config, self.config_manager)
 
-    def test_init(self):
+    def test_init(self, mock_sd_recorder, mock_sd_manager):
         """Test ComponentFactory initialization."""
         assert self.factory.config == self.config
         assert self.factory.config_manager == self.config_manager
         assert isinstance(self.factory.state_manager, ApplicationStateManager)
         assert self.factory.logger is not None
 
-    def test_create_device_manager(self):
+    def test_create_device_manager(self, mock_sd_recorder, mock_sd_manager):
         """Test create_device_manager method."""
         device_manager = self.factory.create_device_manager()
 
@@ -47,7 +50,7 @@ class TestComponentFactory:
         expected_config = {"name": "Test Device", "hostapi_name": "ALSA"}
         assert device_manager._device_config == expected_config
 
-    def test_create_audio_recorder_success(self, mock_sounddevice):
+    def test_create_audio_recorder_success(self, mock_sd_recorder, mock_sd_manager):
         """Test successful audio recorder creation with real components."""
         # Set up mock sounddevice responses
         test_devices = create_test_audio_devices()
@@ -58,8 +61,13 @@ class TestComponentFactory:
                 return test_devices
             return test_devices[device] if device < len(test_devices) else None
 
-        mock_sounddevice.query_devices.side_effect = query_devices_side_effect
-        mock_sounddevice.query_hostapis.return_value = test_hostapis
+        mock_sd_manager.query_devices.side_effect = query_devices_side_effect
+        mock_sd_manager.query_hostapis.return_value = test_hostapis
+        
+        # Mock successful InputStream creation
+        mock_sd_recorder.InputStream.return_value = Mock()
+        mock_sd_recorder.query_devices.side_effect = query_devices_side_effect
+        mock_sd_recorder.check_input_settings.return_value = None
 
         # Create real device manager
         device_manager = self.factory.create_device_manager()
@@ -71,14 +79,22 @@ class TestComponentFactory:
         # Device might be None if the test device isn't found
         assert recorder.device_id is None or isinstance(recorder.device_id, int)
 
-    def test_create_audio_recorder_device_failure_with_fallback(self, mock_sounddevice):
+    def test_create_audio_recorder_device_failure_with_fallback(self, mock_sd_recorder, mock_sd_manager):
         """Test audio recorder creation with device failure and successful fallback."""
         # Set up mock sounddevice responses
         test_devices = create_test_audio_devices()
         test_hostapis = create_test_hostapis()
 
-        mock_sounddevice.query_devices.return_value = test_devices
-        mock_sounddevice.query_hostapis.return_value = test_hostapis
+        def query_devices_side_effect(device=None):
+            if device is None:
+                return test_devices
+            return test_devices[device] if device < len(test_devices) else None
+        
+        mock_sd_manager.query_devices.side_effect = query_devices_side_effect
+        mock_sd_manager.query_hostapis.return_value = test_hostapis
+        
+        mock_sd_recorder.query_devices.side_effect = query_devices_side_effect
+        mock_sd_recorder.check_input_settings.return_value = None
 
         # Make the device initialization fail
         def stream_side_effect(*args, **kwargs):
@@ -86,7 +102,7 @@ class TestComponentFactory:
                 raise Exception("Device initialization failed")
             return Mock()  # Fallback succeeds
 
-        mock_sounddevice.InputStream.side_effect = stream_side_effect
+        mock_sd_recorder.InputStream.side_effect = stream_side_effect
 
         # Create real device manager
         device_manager = self.factory.create_device_manager()
@@ -102,14 +118,14 @@ class TestComponentFactory:
         assert device_manager._device_config is None
         assert device_manager._current_device is None
 
-    def test_create_audio_recorder_default_device_failure(self, mock_sounddevice):
+    def test_create_audio_recorder_default_device_failure(self, mock_sd_recorder, mock_sd_manager):
         """Test audio recorder creation when even default device fails."""
         # Set up device manager with no specific device
         self.config.recording.audio_device = None
         device_manager = self.factory.create_device_manager()
 
         # Make all device initialization fail
-        mock_sounddevice.InputStream.side_effect = Exception(
+        mock_sd_recorder.InputStream.side_effect = Exception(
             "No audio devices available"
         )
 
@@ -117,12 +133,15 @@ class TestComponentFactory:
         with pytest.raises(RuntimeError, match="Audio recorder initialization failed"):
             self.factory.create_audio_recorder(device_manager)
 
-    def test_create_audio_recorder_with_no_device(self, mock_sounddevice):
+    def test_create_audio_recorder_with_no_device(self, mock_sd_recorder, mock_sd_manager):
         """Test audio recorder creation with no specific device configured."""
         # No audio device configured
         self.config.recording.audio_device = None
         device_manager = self.factory.create_device_manager()
 
+        # Mock successful stream creation
+        mock_sd_recorder.InputStream.return_value = Mock()
+        
         # Should create recorder with default device
         recorder = self.factory.create_audio_recorder(device_manager)
 
@@ -130,7 +149,8 @@ class TestComponentFactory:
         assert recorder.device_id is None
         assert recorder.device_name is None
 
-    def test_create_speech_processor(self, mock_whisper_model):
+    @patch("whisper_to_me.speech_processor.WhisperModel")
+    def test_create_speech_processor(self, mock_whisper_model, mock_sd_recorder, mock_sd_manager):
         """Test create_speech_processor method."""
         processor = self.factory.create_speech_processor()
 
@@ -142,7 +162,7 @@ class TestComponentFactory:
             compute_type="float32",  # CPU uses float32
         )
 
-    def test_create_keystroke_handler(self):
+    def test_create_keystroke_handler(self, mock_sd_recorder, mock_sd_manager):
         """Test create_keystroke_handler method."""
         handler = self.factory.create_keystroke_handler()
 
@@ -151,7 +171,7 @@ class TestComponentFactory:
         # It's passed as a parameter to type_text method
 
     @patch("whisper_to_me.component_factory.TrayIcon")
-    def test_create_tray_icon(self, mock_tray_class):
+    def test_create_tray_icon(self, mock_tray_class, mock_sd_recorder, mock_sd_manager):
         """Test create_tray_icon method with callbacks."""
         # Create mock callbacks
         on_quit = Mock()
@@ -189,7 +209,8 @@ class TestComponentFactory:
         assert call_kwargs["get_devices"] == get_devices
         assert call_kwargs["get_current_device"] == get_current_device
 
-    def test_recreate_speech_processor_no_change(self, mock_whisper_model):
+    @patch("whisper_to_me.speech_processor.WhisperModel")
+    def test_recreate_speech_processor_no_change(self, mock_whisper_model, mock_sd_recorder, mock_sd_manager):
         """Test recreate_speech_processor when model hasn't changed."""
         old_config = self.config
         new_config = self.config  # Same config
@@ -199,7 +220,8 @@ class TestComponentFactory:
         assert result is None  # No recreation needed
         mock_whisper_model.assert_not_called()
 
-    def test_recreate_speech_processor_model_change(self, mock_whisper_model):
+    @patch("whisper_to_me.speech_processor.WhisperModel")
+    def test_recreate_speech_processor_model_change(self, mock_whisper_model, mock_sd_recorder, mock_sd_manager):
         """Test recreate_speech_processor when model has changed."""
         old_config = self.config
 
@@ -218,7 +240,8 @@ class TestComponentFactory:
             compute_type="float32",  # CPU uses float32
         )
 
-    def test_recreate_speech_processor_device_change(self, mock_whisper_model):
+    @patch("whisper_to_me.speech_processor.WhisperModel")
+    def test_recreate_speech_processor_device_change(self, mock_whisper_model, mock_sd_recorder, mock_sd_manager):
         """Test recreate_speech_processor when device has changed."""
         old_config = self.config
 
@@ -237,7 +260,8 @@ class TestComponentFactory:
             compute_type="float16",  # Should use float16 for CUDA
         )
 
-    def test_recreate_speech_processor_language_change(self, mock_whisper_model):
+    @patch("whisper_to_me.speech_processor.WhisperModel")
+    def test_recreate_speech_processor_language_change(self, mock_whisper_model, mock_sd_recorder, mock_sd_manager):
         """Test recreate_speech_processor when language has changed."""
         old_config = self.config
 
@@ -253,7 +277,7 @@ class TestComponentFactory:
         # Language change requires model recreation
         mock_whisper_model.assert_called_once()
 
-    def test_get_state_manager(self):
+    def test_get_state_manager(self, mock_sd_recorder, mock_sd_manager):
         """Test get_state_manager method."""
         state_manager = self.factory.get_state_manager()
 
