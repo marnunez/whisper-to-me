@@ -55,7 +55,7 @@ class TestTrayIcon:
         assert recording_icon.size == (32, 32)
         assert recording_icon.mode == "RGBA"
 
-    @patch("os.path.exists")
+    @patch("pathlib.Path.exists")
     def test_create_image_fallback_when_no_icon(self, mock_exists):
         """Test image creation falls back when icon file doesn't exist."""
         mock_exists.return_value = False
