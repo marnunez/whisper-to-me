@@ -92,7 +92,8 @@ whisper-to-me [options]
 Options:
   --model MODEL         Whisper model size (tiny, base, small, medium, large-v3)
   --device DEVICE       Processing device (cpu, cuda)
-  --key KEY            Trigger key (single key or combination, e.g., <scroll_lock>, <ctrl>+<shift>+r)
+  --key KEY            Trigger key (single key or combination, e.g.,
+                       <scroll_lock>, <ctrl>+<shift>+r)
   --language LANG      Target language (auto, en, es, fr, etc.)
   --list-devices       List available audio input devices
   --audio-device ID    Audio device ID to use
@@ -100,7 +101,8 @@ Options:
   --no-tray           Disable system tray icon
   --tap-mode          Use tap-to-start/tap-to-stop instead of push-to-talk
   --discard-key KEY   Key to discard recording in tap mode (default: esc)
-  --min-silence-duration-ms MS  Min silence duration to split segments (default: 2000)
+  --min-silence-duration-ms MS  Min silence duration to split segments
+                                (default: 2000)
   --speech-pad-ms MS  Padding around detected speech (default: 400)
   --help              Show help message
 ```
@@ -144,13 +146,15 @@ whisper-to-me --min-silence-duration-ms 5000 --speech-pad-ms 800
 
 ## Configuration
 
-Whisper-to-Me supports persistent configuration through a TOML config file and multiple profiles for different use cases.
+Whisper-to-Me supports persistent configuration through a TOML config file and
+multiple profiles for different use cases.
 
 ### Configuration File
 
 **Location**: `~/.config/whisper-to-me/config.toml`
 
 View the config file location:
+
 ```bash
 whisper-to-me --config-path
 ```
@@ -370,7 +374,9 @@ whisper-to-me --key "<shift>+1"   # Shift + 1
 ```
 
 Uses standard pynput format:
-- **Named keys**: Wrap in angle brackets `<ctrl>`, `<alt>`, `<shift>`, `<esc>`, `<tab>`, etc.
+
+- **Named keys**: Wrap in angle brackets `<ctrl>`, `<alt>`, `<shift>`, `<esc>`,
+  `<tab>`, etc.
 - **Single characters**: Use directly `a`, `1`, `-`, `+`, etc.
 - **Combinations**: Join with `+` symbol
 
