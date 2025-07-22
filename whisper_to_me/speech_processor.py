@@ -30,6 +30,7 @@ class SpeechProcessor:
         device: str = "cpu",
         language: str | None = None,
         vad_filter: bool = True,
+        initial_prompt: str = "",
     ):
         """
         Initialize the speech processor.
@@ -39,15 +40,21 @@ class SpeechProcessor:
             device: Processing device (cpu, cuda)
             language: Target language for transcription (None for auto-detection, en, es, fr, etc.)
             vad_filter: Enable Voice Activity Detection to filter silence
+            initial_prompt: Initial prompt to guide transcription (max 224 tokens)
         """
         self.model_size = model_size
         self.device = device
         self.language = language
         self.vad_filter = vad_filter
+        self.initial_prompt = initial_prompt
         self.model: WhisperModel | None = None
         self.logger = get_logger()
 
         self._load_model()
+
+        # Validate initial prompt after model is loaded
+        if self.initial_prompt:
+            self._validate_initial_prompt()
 
     def _load_model(self) -> None:
         try:
@@ -63,6 +70,43 @@ class SpeechProcessor:
         except Exception as e:
             self.logger.error(f"Error loading model: {e}", "model")
             raise
+
+    def _validate_initial_prompt(self) -> None:
+        """Validate initial prompt length using the model's tokenizer."""
+        if not self.model or not self.initial_prompt:
+            return
+
+        try:
+            # Import tokenizer module
+            from faster_whisper.tokenizer import Tokenizer
+
+            # Create tokenizer instance
+            tokenizer = Tokenizer(
+                self.model.hf_tokenizer,
+                self.model.model.is_multilingual,
+                task="transcribe",
+                language=self.language,
+            )
+
+            # Encode with leading space (as faster-whisper does internally)
+            tokens = tokenizer.encode(" " + self.initial_prompt.strip())
+            token_count = len(tokens)
+
+            if token_count > 224:
+                self.logger.warning(
+                    f"Initial prompt has {token_count} tokens, exceeds limit of 224. "
+                    f"Only the last 224 tokens will be used.",
+                    "prompt",
+                )
+            else:
+                self.logger.debug(
+                    f"Initial prompt validated: {token_count} tokens", "prompt"
+                )
+        except Exception as e:
+            # Don't fail if validation fails, just log warning
+            self.logger.warning(
+                f"Could not validate initial prompt token count: {e}", "prompt"
+            )
 
     def transcribe(self, audio_data: np.ndarray) -> tuple[str, float, str, float]:
         if self.model is None:
@@ -82,6 +126,10 @@ class SpeechProcessor:
             # Only specify language if set (None enables auto-detection)
             if self.language is not None:
                 transcribe_params["language"] = self.language
+
+            # Add initial prompt if specified
+            if self.initial_prompt:
+                transcribe_params["initial_prompt"] = self.initial_prompt
 
             if self.vad_filter:
                 transcribe_params.update(
@@ -134,6 +182,10 @@ class SpeechProcessor:
             if self.language is not None:
                 transcribe_params["language"] = self.language
 
+            # Add initial prompt if specified
+            if self.initial_prompt:
+                transcribe_params["initial_prompt"] = self.initial_prompt
+
             segments, info = self.model.transcribe(audio_data, **transcribe_params)
 
             result = []
@@ -175,4 +227,5 @@ class SpeechProcessor:
             "device": self.device,
             "language": self.language,
             "loaded": self.model is not None,
+            "initial_prompt": self.initial_prompt,
         }

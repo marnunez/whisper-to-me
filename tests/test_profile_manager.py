@@ -74,9 +74,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=False),
-            advanced=AdvancedConfig(
-                sample_rate=22050, chunk_size=1024, vad_filter=False
-            ),
+            advanced=AdvancedConfig(chunk_size=1024, vad_filter=False),
             profiles={},
         )
         self.config_manager.create_profile("work", work_config)
@@ -97,7 +95,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
             profiles={},
         )
         self.config_manager.create_profile("gaming", gaming_config)
@@ -238,7 +236,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
             profiles={},
         )
 
@@ -383,7 +381,7 @@ class TestProfileManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
             profiles={},
         )
 

@@ -293,6 +293,25 @@ class TestComponentFactory:
         # Language change requires model recreation
         mock_whisper_model.assert_called_once()
 
+    @patch("whisper_to_me.speech_processor.WhisperModel")
+    def test_recreate_speech_processor_initial_prompt_change(
+        self, mock_whisper_model, mock_sd_recorder, mock_sd_manager
+    ):
+        """Test recreate_speech_processor when initial_prompt has changed."""
+        old_config = self.config
+
+        # Create new config with different initial_prompt
+        from copy import deepcopy
+
+        new_config = deepcopy(self.config)
+        new_config.advanced.initial_prompt = "Medical transcription mode"
+
+        processor = self.factory.recreate_speech_processor(old_config, new_config)
+
+        assert isinstance(processor, SpeechProcessor)
+        # Initial prompt change requires model recreation
+        mock_whisper_model.assert_called_once()
+
     def test_get_state_manager(self, mock_sd_recorder, mock_sd_manager):
         """Test get_state_manager method."""
         state_manager = self.factory.get_state_manager()

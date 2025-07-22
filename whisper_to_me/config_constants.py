@@ -65,9 +65,9 @@ class UIFields:
 class AdvancedFields:
     """Field names for advanced configuration section."""
 
-    SAMPLE_RATE: Final[str] = "sample_rate"
     CHUNK_SIZE: Final[str] = "chunk_size"
     VAD_FILTER: Final[str] = "vad_filter"
+    INITIAL_PROMPT: Final[str] = "initial_prompt"
 
 
 # Recording modes

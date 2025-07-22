@@ -69,9 +69,20 @@ class ConfigDiffer[T]:
             base_config: Configuration object to modify
             diff: Dictionary of changes to apply
         """
+        from whisper_to_me.logger import get_logger
+
+        logger = get_logger()
+
         for key, value in diff.items():
             if hasattr(base_config, key):
                 setattr(base_config, key, value)
+            else:
+                # Unknown field - log warning but continue
+                logger.warning(
+                    f"Ignoring unknown profile field '{key}' in {type(base_config).__name__}. "
+                    f"This field is no longer supported.",
+                    "config",
+                )
 
     def has_changes(
         self, current_config: T, default_config: dict, section_name: str

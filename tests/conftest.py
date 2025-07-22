@@ -62,7 +62,7 @@ def default_test_config():
             audio_device=None,
         ),
         ui=UIConfig(use_tray=True),
-        advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+        advanced=AdvancedConfig(chunk_size=512, vad_filter=True),
         profiles={},
     )
 

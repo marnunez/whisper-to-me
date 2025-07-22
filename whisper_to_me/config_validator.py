@@ -263,9 +263,6 @@ class ConfigValidator:
 
     def _validate_advanced_config(self, config) -> Any:
         """Validate advanced configuration section."""
-        if not isinstance(config.sample_rate, int) or config.sample_rate <= 0:
-            raise ValidationError("sample_rate must be a positive integer")
-
         if not isinstance(config.chunk_size, int) or config.chunk_size <= 0:
             raise ValidationError("chunk_size must be a positive integer")
 

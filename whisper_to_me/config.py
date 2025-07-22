@@ -53,9 +53,9 @@ class UIConfig:
 class AdvancedConfig:
     """Advanced configuration options."""
 
-    sample_rate: int = 16000
     chunk_size: int = 512
     vad_filter: bool = True
+    initial_prompt: str = ""
 
 
 @dataclass
@@ -126,6 +126,37 @@ class ConfigManager:
         """Create config directory if it doesn't exist."""
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
+    def _filter_config_fields(
+        self, config_dict: dict[str, Any], config_class: type
+    ) -> dict[str, Any]:
+        """Filter config dictionary to only include valid fields for the given dataclass.
+
+        Args:
+            config_dict: Configuration dictionary from TOML
+            config_class: Dataclass type to filter for
+
+        Returns:
+            Filtered dictionary containing only valid fields
+        """
+        import dataclasses
+
+        # Get valid field names from the dataclass
+        valid_fields = {field.name for field in dataclasses.fields(config_class)}
+
+        # Filter the config dict
+        filtered = {}
+        for key, value in config_dict.items():
+            if key in valid_fields:
+                filtered[key] = value
+            else:
+                self.logger.warning(
+                    f"Ignoring unknown configuration field '{key}' in {config_class.__name__}. "
+                    f"This field is no longer supported and will be removed from your config file.",
+                    "config",
+                )
+
+        return filtered
+
     def _get_default_config(self) -> dict[str, Any]:
         """Get default configuration structure."""
         return {
@@ -145,9 +176,9 @@ class ConfigManager:
             },
             UI_SECTION: {"use_tray": True},
             ADVANCED_SECTION: {
-                "sample_rate": 16000,
                 "chunk_size": 512,
                 "vad_filter": True,
+                "initial_prompt": "",
             },
             PROFILES_SECTION: {},
         }
@@ -231,10 +262,24 @@ class ConfigManager:
         config_dict = self._validate_config(config_dict)
 
         self._config = AppConfig(
-            general=GeneralConfig(**config_dict[GENERAL_SECTION]),
-            recording=RecordingConfig(**config_dict[RECORDING_SECTION]),
-            ui=UIConfig(**config_dict[UI_SECTION]),
-            advanced=AdvancedConfig(**config_dict[ADVANCED_SECTION]),
+            general=GeneralConfig(
+                **self._filter_config_fields(
+                    config_dict[GENERAL_SECTION], GeneralConfig
+                )
+            ),
+            recording=RecordingConfig(
+                **self._filter_config_fields(
+                    config_dict[RECORDING_SECTION], RecordingConfig
+                )
+            ),
+            ui=UIConfig(
+                **self._filter_config_fields(config_dict[UI_SECTION], UIConfig)
+            ),
+            advanced=AdvancedConfig(
+                **self._filter_config_fields(
+                    config_dict[ADVANCED_SECTION], AdvancedConfig
+                )
+            ),
             profiles=config_dict[PROFILES_SECTION],
         )
 

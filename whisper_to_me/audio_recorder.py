@@ -23,7 +23,6 @@ class AudioRecorder:
 
     def __init__(
         self,
-        sample_rate: int | None = None,
         channels: int = 1,
         chunk_size: int = 512,
         device_id: int | None = None,
@@ -33,7 +32,6 @@ class AudioRecorder:
         Initialize the audio recorder.
 
         Args:
-            sample_rate: Audio sample rate in Hz (None for device-adaptive)
             channels: Number of audio channels (1 for mono)
             chunk_size: Audio buffer size (smaller = lower latency)
             device_id: Audio input device ID (None for default)
@@ -44,9 +42,9 @@ class AudioRecorder:
         self.channels = channels
         self.chunk_size = chunk_size
         self.logger = get_logger()
-
-        # Get the best sample rate for this device
-        self.sample_rate = self._get_best_sample_rate(sample_rate)
+        self.sample_rate: int = (
+            16000  # Will be set to device default in _initialize_stream
+        )
 
         self.is_recording = False
         self.audio_data: list[np.ndarray] = []
@@ -54,27 +52,8 @@ class AudioRecorder:
 
         self._initialize_stream()
 
-    def _get_best_sample_rate(self, requested_rate: int | None) -> int:
-        """
-        Get the best sample rate for the device.
-
-        Args:
-            requested_rate: Requested sample rate (None for auto-detect)
-
-        Returns:
-            Best supported sample rate
-        """
-        # If user specified a rate, try that first
-        if requested_rate is not None:
-            try:
-                # Test if the requested rate works
-                sd.check_input_settings(
-                    device=self.device_id, samplerate=requested_rate
-                )
-                return requested_rate
-            except Exception:
-                pass
-
+    def _initialize_stream(self) -> None:
+        """Pre-initialize and start the audio stream to eliminate startup latency"""
         # Get device info to find its default sample rate
         try:
             if self.device_id is not None:
@@ -82,33 +61,18 @@ class AudioRecorder:
             else:
                 device_info = sd.query_devices(sd.default.device[0])
 
-            device_rate = int(device_info["default_samplerate"])
-
-            # Prefer 16kHz (Whisper's native rate), then device default
-            preferred_rates = [16000, device_rate]
-
-            for rate in preferred_rates:
-                try:
-                    sd.check_input_settings(device=self.device_id, samplerate=rate)
-                    self.logger.debug(f"Using sample rate: {rate} Hz", "audio")
-                    return rate
-                except Exception:
-                    continue
-
-            # Fallback to device default if nothing else works
+            self.sample_rate = int(device_info["default_samplerate"])
             self.logger.debug(
-                f"Using device default sample rate: {device_rate} Hz", "audio"
+                f"Using device default sample rate: {self.sample_rate} Hz", "audio"
             )
-            return device_rate
-
         except Exception as e:
+            # Fallback if we can't query the device
+            self.sample_rate = 44100  # Common default
             self.logger.warning(
-                f"Could not determine device sample rate, using 16000 Hz: {e}", "audio"
+                f"Could not determine device sample rate, using {self.sample_rate} Hz: {e}",
+                "audio",
             )
-            return 16000
 
-    def _initialize_stream(self) -> None:
-        """Pre-initialize and start the audio stream to eliminate startup latency"""
         self.stream = sd.InputStream(
             samplerate=self.sample_rate,
             channels=self.channels,

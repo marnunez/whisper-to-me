@@ -42,6 +42,7 @@ class TestConfigManager:
         assert config.recording.mode == "push-to-talk"
         assert config.recording.trigger_key == "<scroll_lock>"
         assert config.ui.use_tray is True
+        assert config.advanced.initial_prompt == ""
 
     def test_profile_creation_and_loading(self):
         """Test creating and loading custom profiles."""
@@ -52,6 +53,7 @@ class TestConfigManager:
         config.general.model = "medium"
         config.general.language = "en"
         config.recording.trigger_key = "<caps_lock>"
+        config.advanced.initial_prompt = "Test prompt"
 
         # Create profile
         assert self.config_manager.create_profile("test_profile", config) is True
@@ -65,6 +67,7 @@ class TestConfigManager:
         assert profile_config.general.model == "medium"
         assert profile_config.general.language == "en"
         assert profile_config.recording.trigger_key == "<caps_lock>"
+        assert profile_config.advanced.initial_prompt == "Test prompt"
 
     def test_profile_switching(self):
         """Test switching between profiles."""
@@ -87,7 +90,7 @@ class TestConfigManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(chunk_size=512, vad_filter=True, initial_prompt=""),
             profiles={},
         )
         self.config_manager.create_profile("spanish", spanish_config)
@@ -109,7 +112,7 @@ class TestConfigManager:
             ),
             ui=UIConfig(use_tray=False),
             advanced=AdvancedConfig(
-                sample_rate=22050, chunk_size=1024, vad_filter=False
+                chunk_size=1024, vad_filter=False, initial_prompt=""
             ),
             profiles={},
         )
@@ -260,7 +263,7 @@ class TestConfigManager:
             ),
             ui=UIConfig(use_tray=False),
             advanced=AdvancedConfig(
-                sample_rate=44100, chunk_size=2048, vad_filter=False
+                chunk_size=2048, vad_filter=False, initial_prompt=""
             ),
             profiles={},
         )
@@ -282,7 +285,7 @@ class TestConfigManager:
 
         assert applied.ui.use_tray is False
 
-        assert applied.advanced.sample_rate == 44100
+        # sample_rate was removed from config
         assert applied.advanced.chunk_size == 2048
         assert applied.advanced.vad_filter is False
 
@@ -353,7 +356,7 @@ class TestConfigManager:
                 audio_device=None,
             ),
             ui=UIConfig(use_tray=True),
-            advanced=AdvancedConfig(sample_rate=16000, chunk_size=512, vad_filter=True),
+            advanced=AdvancedConfig(chunk_size=512, vad_filter=True, initial_prompt=""),
             profiles={},
         )
 
@@ -426,3 +429,99 @@ class TestConfigManager:
             # Verify we can apply the profile
             applied = self.config_manager.apply_profile(name)
             assert applied.general.model == "tiny"
+
+    def test_load_config_with_unknown_fields(self):
+        """Test loading config with deprecated/unknown fields shows warnings."""
+        # Create a config file with unknown fields
+        config_dict = {
+            "general": {
+                "model": "tiny",
+                "device": "cpu",
+                "language": "en",
+                "debug": False,
+                "last_profile": "default",
+                "trailing_space": False,
+                "unknown_field": "should be ignored",
+            },
+            "recording": {
+                "mode": "push-to-talk",
+                "trigger_key": "<scroll_lock>",
+                "discard_key": "<esc>",
+                "audio_device": None,
+                "deprecated_option": True,
+            },
+            "ui": {
+                "use_tray": True,
+                "future_feature": "not yet implemented",
+            },
+            "advanced": {
+                "chunk_size": 512,
+                "vad_filter": True,
+                "initial_prompt": "",
+                "sample_rate": 16000,  # This was removed
+                "old_setting": "deprecated",
+            },
+            "profiles": {},
+        }
+
+        # Write the config with unknown fields
+        self.config_manager._save_config_to_file(config_dict)
+
+        # Capture log output
+        from unittest.mock import patch
+
+        with patch.object(self.config_manager.logger, "warning") as mock_warning:
+            # Load the config - should succeed despite unknown fields
+            config = self.config_manager.load_config()
+
+            # Verify the config loaded correctly with known fields
+            assert config.general.model == "tiny"
+            assert config.general.device == "cpu"
+            assert config.recording.mode == "push-to-talk"
+            assert config.ui.use_tray is True
+            assert config.advanced.chunk_size == 512
+
+            # Verify warnings were logged for unknown fields
+            warning_calls = [call[0][0] for call in mock_warning.call_args_list]
+            assert any("unknown_field" in msg for msg in warning_calls)
+            assert any("deprecated_option" in msg for msg in warning_calls)
+            assert any("future_feature" in msg for msg in warning_calls)
+            assert any("sample_rate" in msg for msg in warning_calls)
+            assert any("old_setting" in msg for msg in warning_calls)
+
+    def test_profile_with_unknown_fields(self):
+        """Test applying profile with deprecated/unknown fields shows warnings."""
+        # First create a valid config
+        self.config_manager.load_config()
+
+        # Create a profile with some unknown fields in the saved data
+        profile_data = {
+            "general": {
+                "model": "large-v3",
+                "unknown_general_field": "test",
+            },
+            "advanced": {
+                "vad_filter": False,
+                "sample_rate": 44100,  # Deprecated field
+            },
+        }
+
+        # Manually add the profile with unknown fields
+        self.config_manager._config.profiles["test_unknown"] = profile_data
+        self.config_manager.save_config()
+
+        # Apply the profile and capture warnings
+        from unittest.mock import patch
+
+        with patch.object(self.config_manager.logger, "warning") as mock_warning:
+            applied = self.config_manager.apply_profile("test_unknown")
+
+            # Verify known fields were applied
+            assert applied.general.model == "large-v3"
+            assert applied.advanced.vad_filter is False
+
+            # Verify warnings were logged for unknown fields
+            warning_calls = [call[0][0] for call in mock_warning.call_args_list]
+            # Note: These warnings come from config_differ.py
+            assert any("unknown_general_field" in msg for msg in warning_calls)
+            assert any("sample_rate" in msg for msg in warning_calls)

@@ -113,6 +113,8 @@ class ComponentFactory:
             language=self.config.general.language
             if self.config.general.language != "auto"
             else None,
+            vad_filter=self.config.advanced.vad_filter,
+            initial_prompt=self.config.advanced.initial_prompt,
         )
 
     def create_keystroke_handler(self) -> KeystrokeHandler:
@@ -184,6 +186,7 @@ class ComponentFactory:
             old_config.general.language != new_config.general.language
             or old_config.general.model != new_config.general.model
             or old_config.general.device != new_config.general.device
+            or old_config.advanced.initial_prompt != new_config.advanced.initial_prompt
         ):
             if old_config.general.language != new_config.general.language:
                 self.logger.info(

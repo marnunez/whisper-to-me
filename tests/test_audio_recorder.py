@@ -12,12 +12,10 @@ class TestAudioRecorder:
 
     @patch("sounddevice.InputStream")
     @patch("sounddevice.query_devices")
-    @patch("sounddevice.check_input_settings")
-    def test_init_default_params(self, mock_check, mock_query, mock_stream):
+    def test_init_default_params(self, mock_query, mock_stream):
         """Test AudioRecorder initialization with default parameters."""
         # Mock device query
         mock_query.return_value = {"default_samplerate": 44100}
-        mock_check.return_value = None  # No exception
 
         # Mock stream
         mock_stream_instance = Mock()
@@ -29,7 +27,7 @@ class TestAudioRecorder:
         assert recorder.device_name is None
         assert recorder.channels == 1
         assert recorder.chunk_size == 512
-        assert recorder.sample_rate == 16000  # Should prefer 16kHz
+        assert recorder.sample_rate == 44100  # Should use device default
         assert recorder.is_recording is False
         assert recorder.audio_data == []
         assert recorder.stream is not None
@@ -39,16 +37,13 @@ class TestAudioRecorder:
 
     @patch("sounddevice.InputStream")
     @patch("sounddevice.query_devices")
-    @patch("sounddevice.check_input_settings")
-    def test_init_with_custom_params(self, mock_check, mock_query, mock_stream):
+    def test_init_with_custom_params(self, mock_query, mock_stream):
         """Test AudioRecorder initialization with custom parameters."""
         mock_query.return_value = {"default_samplerate": 48000}
-        mock_check.return_value = None
         mock_stream_instance = Mock()
         mock_stream.return_value = mock_stream_instance
 
         recorder = AudioRecorder(
-            sample_rate=48000,
             channels=2,
             chunk_size=1024,
             device_id=3,
@@ -59,88 +54,23 @@ class TestAudioRecorder:
         assert recorder.device_name == "Test Device"
         assert recorder.channels == 2
         assert recorder.chunk_size == 1024
-        assert recorder.sample_rate == 48000
+        assert recorder.sample_rate == 48000  # Device default
 
     @patch("sounddevice.InputStream")
     @patch("sounddevice.query_devices")
-    @patch("sounddevice.check_input_settings")
-    def test_get_best_sample_rate_requested_valid(
-        self, mock_check, mock_query, mock_stream
-    ):
-        """Test _get_best_sample_rate with valid requested rate."""
-        mock_check.return_value = None  # No exception for requested rate
-        mock_stream.return_value = Mock()
-
-        recorder = AudioRecorder(sample_rate=22050)
-
-        assert recorder.sample_rate == 22050
-        mock_check.assert_called_with(device=None, samplerate=22050)
-
-    @patch("sounddevice.InputStream")
-    @patch("sounddevice.query_devices")
-    @patch("sounddevice.check_input_settings")
     @patch("sounddevice.default")
-    def test_get_best_sample_rate_fallback_to_16k(
-        self, mock_default, mock_check, mock_query, mock_stream
+    def test_initialize_stream_query_device_error(
+        self, mock_default, mock_query, mock_stream
     ):
-        """Test _get_best_sample_rate falling back to 16kHz."""
-
-        # Requested rate fails, but 16kHz works
-        def check_side_effect(device=None, samplerate=None):
-            if samplerate == 22050:  # Requested rate fails
-                raise Exception("Rate not supported")
-            # 16kHz works
-            return None
-
-        mock_check.side_effect = check_side_effect
-        mock_default.device = [None, None]
-        mock_query.return_value = {"default_samplerate": 44100}
-        mock_stream.return_value = Mock()
-
-        recorder = AudioRecorder(sample_rate=22050)
-
-        assert recorder.sample_rate == 16000
-
-    @patch("sounddevice.InputStream")
-    @patch("sounddevice.query_devices")
-    @patch("sounddevice.check_input_settings")
-    @patch("sounddevice.default")
-    def test_get_best_sample_rate_fallback_to_device_default(
-        self, mock_default, mock_check, mock_query, mock_stream
-    ):
-        """Test _get_best_sample_rate falling back to device default."""
-
-        # Both requested rate and 16kHz fail, use device default
-        def check_side_effect(device=None, samplerate=None):
-            if samplerate in [22050, 16000]:
-                raise Exception("Rate not supported")
-            # Device default works
-            return None
-
-        mock_check.side_effect = check_side_effect
-        mock_default.device = [None, None]
-        mock_query.return_value = {"default_samplerate": 48000}
-        mock_stream.return_value = Mock()
-
-        recorder = AudioRecorder(sample_rate=22050)
-
-        assert recorder.sample_rate == 48000
-
-    @patch("sounddevice.InputStream")
-    @patch("sounddevice.query_devices")
-    @patch("sounddevice.check_input_settings")
-    def test_get_best_sample_rate_query_device_error(
-        self, mock_check, mock_query, mock_stream
-    ):
-        """Test _get_best_sample_rate with device query error."""
-        mock_check.side_effect = Exception("All rates fail")
+        """Test _initialize_stream with device query error."""
         mock_query.side_effect = Exception("Query failed")
+        mock_default.device = [None, None]
         mock_stream.return_value = Mock()
 
         recorder = AudioRecorder()
 
-        # Should fallback to 16000 when everything fails
-        assert recorder.sample_rate == 16000
+        # Should fallback to 44100 when query fails
+        assert recorder.sample_rate == 44100
 
     @patch("sounddevice.InputStream")
     @patch("sounddevice.query_devices")
@@ -149,9 +79,8 @@ class TestAudioRecorder:
         mock_stream_instance = Mock()
         mock_stream.return_value = mock_stream_instance
 
-        # Don't call the real _get_best_sample_rate
-        with patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000):
-            AudioRecorder(device_name="Test Device")
+        mock_query.return_value = {"default_samplerate": 16000}
+        AudioRecorder(device_name="Test Device")
 
         # Should create stream with correct parameters
         mock_stream.assert_called_once()
@@ -173,8 +102,11 @@ class TestAudioRecorder:
         mock_stream.return_value = mock_stream_instance
         mock_query.return_value = {"name": "Queried Device Name"}
 
-        with patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000):
-            AudioRecorder(device_id=5)
+        mock_query.side_effect = [
+            {"default_samplerate": 16000},
+            {"name": "Queried Device Name"},
+        ]
+        AudioRecorder(device_id=5)
 
         # Should query device info for display
         mock_query.assert_called_with(5)
@@ -183,7 +115,6 @@ class TestAudioRecorder:
         """Test _audio_callback when not recording."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -201,7 +132,6 @@ class TestAudioRecorder:
         """Test _audio_callback when recording."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -220,7 +150,6 @@ class TestAudioRecorder:
         """Test _audio_callback with status message."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -236,7 +165,6 @@ class TestAudioRecorder:
         """Test start_recording method."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -252,7 +180,6 @@ class TestAudioRecorder:
         """Test start_recording when already recording."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -270,7 +197,6 @@ class TestAudioRecorder:
         """Test stop_recording when not recording."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -284,7 +210,6 @@ class TestAudioRecorder:
         """Test stop_recording with no audio data."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -301,7 +226,6 @@ class TestAudioRecorder:
         """Test stop_recording with audio data."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -326,7 +250,6 @@ class TestAudioRecorder:
         """Test get_audio_data_for_whisper with empty/None data."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -343,7 +266,6 @@ class TestAudioRecorder:
         """Test get_audio_data_for_whisper with 16kHz data (no resampling needed)."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -363,7 +285,6 @@ class TestAudioRecorder:
         """Test get_audio_data_for_whisper with resampling needed."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=44100),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -394,7 +315,6 @@ class TestAudioRecorder:
         """Test get_audio_data_for_whisper with multi-channel data."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -414,7 +334,6 @@ class TestAudioRecorder:
         """Test _resample_audio with same source and target rate."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -429,7 +348,6 @@ class TestAudioRecorder:
         """Test _resample_audio with downsampling."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -447,7 +365,6 @@ class TestAudioRecorder:
         """Test _resample_audio with upsampling."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -465,7 +382,6 @@ class TestAudioRecorder:
         """Test is_recording_active method."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()
@@ -480,7 +396,6 @@ class TestAudioRecorder:
         """Test get_audio_data_for_whisper with all-zero audio (no normalization)."""
         with (
             patch("sounddevice.InputStream"),
-            patch.object(AudioRecorder, "_get_best_sample_rate", return_value=16000),
             patch.object(AudioRecorder, "_initialize_stream"),
         ):
             recorder = AudioRecorder()

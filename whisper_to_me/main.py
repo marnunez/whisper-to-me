@@ -121,6 +121,8 @@ class WhisperToMe:
             language=self.config.general.language
             if self.config.general.language != "auto"
             else None,
+            vad_filter=self.config.advanced.vad_filter,
+            initial_prompt=self.config.advanced.initial_prompt,
         )
         self.keystroke_handler = KeystrokeHandler()
 
@@ -182,15 +184,17 @@ class WhisperToMe:
         old_language = self.config.general.language
         old_model = self.config.general.model
         old_device = self.config.general.device
+        old_initial_prompt = self.config.advanced.initial_prompt
 
         self.config = new_config
         self._update_from_config()
 
-        # Update speech processor if language/model/device changed
+        # Update speech processor if language/model/device/initial_prompt changed
         if (
             old_language != new_config.general.language
             or old_model != new_config.general.model
             or old_device != new_config.general.device
+            or old_initial_prompt != new_config.advanced.initial_prompt
         ):
             if old_language != new_config.general.language:
                 self.logger.info(
@@ -216,6 +220,8 @@ class WhisperToMe:
                 language=new_config.general.language
                 if new_config.general.language != "auto"
                 else None,
+                vad_filter=new_config.advanced.vad_filter,
+                initial_prompt=new_config.advanced.initial_prompt,
             )
 
         # Save the profile switch
@@ -557,6 +563,11 @@ Examples:
         action="store_true",
         help="Add a trailing space after transcribed text",
     )
+    parser.add_argument(
+        "--initial-prompt",
+        type=str,
+        help="Initial prompt to guide transcription (max 224 tokens)",
+    )
 
     args = parser.parse_args()
 
@@ -685,6 +696,10 @@ Examples:
     # Override UI settings
     if args.no_tray:
         config.ui.use_tray = False
+
+    # Override advanced settings
+    if args.initial_prompt is not None:
+        config.advanced.initial_prompt = args.initial_prompt
 
     # Handle profile creation
     if args.create_profile:
