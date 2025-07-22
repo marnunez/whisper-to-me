@@ -97,6 +97,12 @@ include = [
     "assets/**/*"
 ]
 
-[tool.hatch.build.force-include]
+[tool.hatch.build.targets.wheel]
+include = [
+    "whisper_to_me/**/*.py",
+    "assets/**/*"
+]
+
+[tool.hatch.build.targets.wheel.force-include]
 "assets" = "whisper_to_me/assets"
 

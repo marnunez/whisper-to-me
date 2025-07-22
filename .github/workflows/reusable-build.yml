@@ -55,7 +55,7 @@ jobs:
       run: |
         uv build
         # Verify wheel contents
-        unzip -l dist/*.whl | grep -E "(whisper_to_me\.py|tray_icon\.py|single_instance\.py)"
+        unzip -l dist/*.whl | grep -E "(main\.py|tray_icon\.py|single_instance\.py)"
     
     - name: Store the distribution packages
       uses: actions/upload-artifact@v4
