@@ -139,7 +139,7 @@ class TestTextProcessorOllama:
         messages = call_kwargs.kwargs["messages"]
         assert messages[0]["role"] == "system"
         assert messages[1]["role"] == "user"
-        assert messages[1]["content"] == "/no_think\num hello like world"
+        assert messages[1]["content"] == "/no_think\n[TRANSCRIPTION]\num hello like world\n[/TRANSCRIPTION]"
 
     def test_ollama_with_custom_url(self):
         """Test Ollama with custom API URL."""

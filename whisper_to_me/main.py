@@ -33,6 +33,7 @@ from whisper_to_me.logger import LogLevel, get_logger, setup_logger
 from whisper_to_me.single_instance import SingleInstance
 from whisper_to_me.speech_processor import SpeechProcessor
 from whisper_to_me.text_processor import TextProcessor
+
 # TrayIcon imported lazily — pystray needs GTK typelibs at import time
 
 
@@ -145,6 +146,8 @@ class WhisperToMe:
             system_prompt=self.config.processing.system_prompt,
             timeout=self.config.processing.timeout,
             thinking=self.config.processing.thinking,
+            contexts=self.config.processing.contexts,
+            display_backend=self.display_backend,
         )
 
         # Initialize tray icon if enabled
@@ -287,6 +290,8 @@ class WhisperToMe:
             system_prompt=new_config.processing.system_prompt,
             timeout=new_config.processing.timeout,
             thinking=new_config.processing.thinking,
+            contexts=new_config.processing.contexts,
+            display_backend=self.display_backend,
         )
 
         # Save the profile switch

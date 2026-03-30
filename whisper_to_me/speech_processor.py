@@ -81,9 +81,7 @@ class SpeechProcessor:
         except Exception as e:
             self.logger.error(f"Error loading model: {e}", "model")
 
-    def _detect_among(
-        self, audio_data: np.ndarray, allowed: list[str]
-    ) -> str | None:
+    def _detect_among(self, audio_data: np.ndarray, allowed: list[str]) -> str | None:
         """Detect language from a restricted set using probability scores."""
         if self.model is None:
             return None

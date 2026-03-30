@@ -7,7 +7,7 @@ Whisper-to-Me application.
 
 import os
 import tomllib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -69,7 +69,9 @@ class GeneralConfig:
     model: str = ModelSizes.LARGE_V3
     device: str = DeviceTypes.CUDA
     language: str = Languages.AUTO
-    allowed_languages: list[str] | None = None  # e.g. ["en", "es"] to restrict detection
+    allowed_languages: list[str] | None = (
+        None  # e.g. ["en", "es"] to restrict detection
+    )
     debug: bool = False
     last_profile: str = DEFAULT_PROFILE
     trailing_space: bool = False
@@ -88,6 +90,8 @@ class ProcessingConfig:
     system_prompt: str = ""
     timeout: int = 10
     thinking: bool | str = False  # False, True, or "low" for budget thinking
+    contexts: dict[str, dict[str, Any]] = field(default_factory=dict)
+    # contexts format: {"terminal": {"match": ["wezterm", ...], "hint": "...", "terms": [...]}}
 
 
 @dataclass

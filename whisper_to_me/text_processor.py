@@ -61,6 +61,8 @@ class TextProcessor:
         system_prompt: str = "",
         timeout: int = 10,
         thinking: bool | str = False,
+        contexts: dict[str, dict[str, Any]] | None = None,
+        display_backend: Any = None,
     ):
         """
         Initialize the text processor.
@@ -75,6 +77,8 @@ class TextProcessor:
             system_prompt: Custom system prompt (empty = use default)
             timeout: Timeout in seconds for LLM calls
             thinking: False to disable, True to enable, "low" for budget thinking
+            contexts: Window context definitions {name: {match, hint, terms}}
+            display_backend: DisplayBackend for focused window detection
         """
         self.enabled = enabled
         self.backend = backend
@@ -85,6 +89,8 @@ class TextProcessor:
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
         self.timeout = timeout
         self.thinking = thinking
+        self.contexts = contexts or {}
+        self.display_backend = display_backend
         self.logger = get_logger()
 
         if self.enabled:
@@ -92,6 +98,44 @@ class TextProcessor:
                 f"Text processing enabled: {self.backend}/{self.model}",
                 "processing",
             )
+
+    def _get_context_prompt(self) -> str:
+        """Get context-specific prompt addition based on the focused window."""
+        if not self.contexts:
+            return ""
+
+        from whisper_to_me.display_backend import get_focused_app
+
+        app = get_focused_app(self.display_backend)
+        if not app:
+            return ""
+
+        for name, ctx in self.contexts.items():
+            match_list = ctx.get("match", [])
+            for pattern in match_list:
+                if pattern.lower() in app:
+                    parts = []
+                    hint = ctx.get("hint", "")
+                    terms = ctx.get("terms", [])
+                    if hint:
+                        parts.append(f"Context: {hint}")
+                    if terms:
+                        parts.append(
+                            f"Domain terms for this context: {', '.join(terms)}"
+                        )
+                    if parts:
+                        self.logger.debug(
+                            f"Window context: {name} (app={app})", "processing"
+                        )
+                        return "\n".join(parts)
+        return ""
+
+    def _build_system_prompt(self) -> str:
+        """Build the full system prompt with optional window context."""
+        context = self._get_context_prompt()
+        if context:
+            return f"{self.system_prompt}\n\n{context}"
+        return self.system_prompt
 
     def process(self, text: str) -> str:
         """
@@ -164,7 +208,7 @@ class TextProcessor:
         response = client.chat(
             model=self.model,
             messages=[
-                {"role": "system", "content": self.system_prompt},
+                {"role": "system", "content": self._build_system_prompt()},
                 {"role": "user", "content": user_content},
             ],
             options={
@@ -200,11 +244,13 @@ class TextProcessor:
         """Refresh the Anthropic OAuth access token using the refresh token."""
         import urllib.request
 
-        body = json.dumps({
-            "grant_type": "refresh_token",
-            "client_id": _ANTHROPIC_CLIENT_ID,
-            "refresh_token": auth["refresh"],
-        }).encode()
+        body = json.dumps(
+            {
+                "grant_type": "refresh_token",
+                "client_id": _ANTHROPIC_CLIENT_ID,
+                "refresh_token": auth["refresh"],
+            }
+        ).encode()
 
         req = urllib.request.Request(
             _ANTHROPIC_TOKEN_URL,
@@ -271,8 +317,13 @@ class TextProcessor:
         response = client.messages.create(
             model=self.model,
             max_tokens=1024,
-            system=self.system_prompt,
-            messages=[{"role": "user", "content": f"[TRANSCRIPTION]\n{text}\n[/TRANSCRIPTION]"}],
+            system=self._build_system_prompt(),
+            messages=[
+                {
+                    "role": "user",
+                    "content": f"[TRANSCRIPTION]\n{text}\n[/TRANSCRIPTION]",
+                }
+            ],
             temperature=self.temperature,
         )
 
@@ -300,8 +351,11 @@ class TextProcessor:
         response = client.chat.completions.create(
             model=self.model,
             messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": f"[TRANSCRIPTION]\n{text}\n[/TRANSCRIPTION]"},
+                {"role": "system", "content": self._build_system_prompt()},
+                {
+                    "role": "user",
+                    "content": f"[TRANSCRIPTION]\n{text}\n[/TRANSCRIPTION]",
+                },
             ],
             temperature=self.temperature,
         )
