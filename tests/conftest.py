@@ -12,6 +12,7 @@ from whisper_to_me import (
     AppConfig,
     ConfigManager,
     GeneralConfig,
+    ProcessingConfig,
     RecordingConfig,
     UIConfig,
 )
@@ -69,6 +70,7 @@ def default_test_config():
             min_silence_duration_ms=2000,
             speech_pad_ms=400,
         ),
+        processing=ProcessingConfig(),
         profiles={},
     )
 

@@ -33,6 +33,14 @@ dependencies = [
     "tomli-w>=1.2.0",
 ]
 
+[project.optional-dependencies]
+llm = [
+    "ollama>=0.4.0",
+    "openai>=1.0.0",
+]
+ollama = ["ollama>=0.4.0"]
+openai = ["openai>=1.0.0"]
+
 [project.scripts]
 whisper-to-me = "whisper_to_me.main:main"
 

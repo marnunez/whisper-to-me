@@ -139,6 +139,7 @@ class ConfigSectionDiffer:
         self.recording_differ = ConfigDiffer()
         self.ui_differ = ConfigDiffer()
         self.advanced_differ = ConfigDiffer()
+        self.processing_differ = ConfigDiffer()
 
     def create_profile_data(
         self, config, default_config: dict[str, Any]
@@ -178,6 +179,12 @@ class ConfigSectionDiffer:
         if advanced_diff:
             profile_data["advanced"] = advanced_diff
 
+        processing_diff = self.processing_differ.create_diff(
+            config.processing, default_config, "processing"
+        )
+        if processing_diff:
+            profile_data["processing"] = processing_diff
+
         return profile_data
 
     def apply_profile_data(self, base_config, profile_data: dict[str, Any]) -> None:
@@ -202,4 +209,9 @@ class ConfigSectionDiffer:
         if "advanced" in profile_data:
             self.advanced_differ.apply_diff(
                 base_config.advanced, profile_data["advanced"]
+            )
+
+        if "processing" in profile_data:
+            self.processing_differ.apply_diff(
+                base_config.processing, profile_data["processing"]
             )

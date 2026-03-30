@@ -12,6 +12,7 @@ GENERAL_SECTION: Final[str] = "general"
 RECORDING_SECTION: Final[str] = "recording"
 UI_SECTION: Final[str] = "ui"
 ADVANCED_SECTION: Final[str] = "advanced"
+PROCESSING_SECTION: Final[str] = "processing"
 PROFILES_SECTION: Final[str] = "profiles"
 
 # All configuration sections
@@ -20,6 +21,7 @@ ALL_SECTIONS: Final[list[str]] = [
     RECORDING_SECTION,
     UI_SECTION,
     ADVANCED_SECTION,
+    PROCESSING_SECTION,
     PROFILES_SECTION,
 ]
 
@@ -29,6 +31,7 @@ REQUIRED_SECTIONS: Final[list[str]] = [
     RECORDING_SECTION,
     UI_SECTION,
     ADVANCED_SECTION,
+    PROCESSING_SECTION,
 ]
 
 # Default profile name
@@ -68,6 +71,27 @@ class AdvancedFields:
     CHUNK_SIZE: Final[str] = "chunk_size"
     VAD_FILTER: Final[str] = "vad_filter"
     INITIAL_PROMPT: Final[str] = "initial_prompt"
+
+
+class ProcessingFields:
+    """Field names for processing configuration section."""
+
+    ENABLED: Final[str] = "enabled"
+    BACKEND: Final[str] = "backend"
+    MODEL: Final[str] = "model"
+    API_URL: Final[str] = "api_url"
+    API_KEY: Final[str] = "api_key"
+    TEMPERATURE: Final[str] = "temperature"
+    SYSTEM_PROMPT: Final[str] = "system_prompt"
+    TIMEOUT: Final[str] = "timeout"
+
+
+# Processing backends
+class ProcessingBackends:
+    """Valid processing backend constants."""
+
+    OLLAMA: Final[str] = "ollama"
+    OPENAI: Final[str] = "openai"
 
 
 # Recording modes

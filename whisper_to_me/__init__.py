@@ -22,6 +22,7 @@ from .config import (
     AppConfig,
     ConfigManager,
     GeneralConfig,
+    ProcessingConfig,
     RecordingConfig,
     UIConfig,
 )
@@ -41,6 +42,7 @@ from .menu_builder import (
 from .profile_manager import ProfileManager
 from .single_instance import SingleInstance
 from .speech_processor import SpeechProcessor
+from .text_processor import TextProcessor
 
 # UI components
 from .tray_icon import TrayIcon
@@ -54,6 +56,7 @@ __all__ = [
     "RecordingConfig",
     "UIConfig",
     "AdvancedConfig",
+    "ProcessingConfig",
     # Management
     "ComponentFactory",
     "ProfileManager",
@@ -62,6 +65,7 @@ __all__ = [
     "AudioDevice",
     "AudioRecorder",
     "SpeechProcessor",
+    "TextProcessor",
     # Input/Output
     "KeystrokeHandler",
     "HotkeyManager",
