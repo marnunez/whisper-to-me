@@ -34,19 +34,15 @@ from .keystroke_handler import KeystrokeHandler
 
 # Utilities
 from .logger import get_logger
-from .menu_builder import (
-    DeviceMenuFormatter,
-    MenuBuilder,
-    ProfileMenuFormatter,
-    TrayMenuBuilder,
-)
+# menu_builder and tray_icon import pystray which needs GTK typelibs
+# from .menu_builder import DeviceMenuFormatter, MenuBuilder, ProfileMenuFormatter, TrayMenuBuilder
 from .profile_manager import ProfileManager
 from .single_instance import SingleInstance
 from .speech_processor import SpeechProcessor
 from .text_processor import TextProcessor
 
-# UI components
-from .tray_icon import TrayIcon
+# UI components (lazy — TrayIcon needs GTK typelibs at import time)
+# from .tray_icon import TrayIcon  # imported lazily where needed
 
 __version__ = "0.3.0"
 __all__ = [
@@ -75,9 +71,9 @@ __all__ = [
     "KeystrokeHandler",
     "HotkeyManager",
     # UI
-    "TrayIcon",
-    "MenuBuilder",
-    "TrayMenuBuilder",
+    # "TrayIcon",  # lazy import
+    # "MenuBuilder",  # lazy import
+    # "TrayMenuBuilder",  # lazy import
     "ProfileMenuFormatter",
     "DeviceMenuFormatter",
     # Utilities

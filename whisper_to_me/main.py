@@ -33,7 +33,7 @@ from whisper_to_me.logger import LogLevel, get_logger, setup_logger
 from whisper_to_me.single_instance import SingleInstance
 from whisper_to_me.speech_processor import SpeechProcessor
 from whisper_to_me.text_processor import TextProcessor
-from whisper_to_me.tray_icon import TrayIcon
+# TrayIcon imported lazily — pystray needs GTK typelibs at import time
 
 
 class WhisperToMe:
@@ -147,6 +147,8 @@ class WhisperToMe:
 
         # Initialize tray icon if enabled
         if self.config.ui.use_tray:
+            from whisper_to_me.tray_icon import TrayIcon
+
             self.tray_icon = TrayIcon(
                 on_quit=self.shutdown,
                 on_profile_change=self.switch_profile,

@@ -12,7 +12,6 @@ from whisper_to_me import (
     ComponentFactory,
     KeystrokeHandler,
     SpeechProcessor,
-    TrayIcon,
 )
 
 
@@ -178,7 +177,7 @@ class TestComponentFactory:
         # KeystrokeHandler doesn't have a trailing_space attribute
         # It's passed as a parameter to type_text method
 
-    @patch("whisper_to_me.component_factory.TrayIcon")
+    @patch("whisper_to_me.tray_icon.TrayIcon")
     def test_create_tray_icon(self, mock_tray_class, mock_sd_recorder, mock_sd_manager):
         """Test create_tray_icon method with callbacks."""
         # Create mock callbacks
@@ -189,7 +188,7 @@ class TestComponentFactory:
         get_current_device = Mock(return_value=None)
 
         # Mock tray instance
-        mock_tray = Mock(spec=TrayIcon)
+        mock_tray = Mock()
         mock_tray_class.return_value = mock_tray
 
         # Create tray icon

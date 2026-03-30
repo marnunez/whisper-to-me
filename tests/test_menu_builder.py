@@ -2,7 +2,7 @@
 
 from unittest.mock import Mock, patch
 
-from whisper_to_me import (
+from whisper_to_me.menu_builder import (
     DeviceMenuFormatter,
     MenuBuilder,
     ProfileMenuFormatter,

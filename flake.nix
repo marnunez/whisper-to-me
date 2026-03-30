@@ -11,17 +11,26 @@
       in {
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
-            # Audio
+            # Build tools
+            pkg-config
+            gobject-introspection  # g-ir-scanner, setup hooks for GI_TYPELIB_PATH
+          ];
+
+          buildInputs = with pkgs; [
+            # Audio (sounddevice needs libportaudio)
             portaudio
 
-            # GTK / pystray (PyGObject needs typelibs at import time)
-            gtk3
-            gobject-introspection
-            glib
+            # C build deps (evdev extension needs kernel headers)
+            linuxHeaders
+
+            # Cairo/GTK (pycairo + pygobject + pystray)
             cairo
+            glib
+            gtk3
             pango
             gdk-pixbuf
             atk
+            harfbuzz
 
             # System tray (pystray needs AyatanaAppIndicator3 typelib)
             libayatana-appindicator
@@ -30,10 +39,8 @@
             wtype
           ];
 
-          # GI_TYPELIB_PATH is set automatically by gobject-introspection's setup hook,
-          # but we need the typelibs from GTK and friends too.
-          # LD_LIBRARY_PATH needs portaudio for sounddevice's ctypes.util.find_library.
           shellHook = ''
+            # GI_TYPELIB_PATH for PyGObject (pystray, etc.)
             export GI_TYPELIB_PATH="${pkgs.lib.makeSearchPath "lib/girepository-1.0" [
               pkgs.gtk3
               pkgs.glib
@@ -43,13 +50,10 @@
               pkgs.harfbuzz
               pkgs.libayatana-appindicator
             ]}''${GI_TYPELIB_PATH:+:$GI_TYPELIB_PATH}"
+
+            # portaudio for sounddevice's ctypes.util.find_library
             export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath [
               pkgs.portaudio
-              pkgs.gtk3
-              pkgs.glib
-              pkgs.cairo
-              pkgs.pango
-              pkgs.gdk-pixbuf
             ]}''${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           '';
         };

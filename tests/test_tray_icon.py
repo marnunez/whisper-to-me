@@ -6,7 +6,7 @@ from unittest.mock import Mock, patch
 
 from PIL import Image
 
-from whisper_to_me import TrayIcon
+from whisper_to_me.tray_icon import TrayIcon
 
 
 class TestTrayIcon:

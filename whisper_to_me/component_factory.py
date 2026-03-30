@@ -17,7 +17,6 @@ from whisper_to_me.config import AppConfig, ConfigManager
 from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import get_logger
 from whisper_to_me.speech_processor import SpeechProcessor
-from whisper_to_me.tray_icon import TrayIcon
 
 if TYPE_CHECKING:
     from whisper_to_me.display_backend import DisplayBackend
@@ -148,7 +147,7 @@ class ComponentFactory:
         on_device_change: Callable[[int], None],
         get_devices: Callable[[], list[dict]],
         get_current_device: Callable[[], dict | None],
-    ) -> TrayIcon | None:
+    ):
         """
         Create and configure tray icon if enabled.
 
@@ -164,6 +163,8 @@ class ComponentFactory:
         """
         if not self.config.ui.use_tray:
             return None
+
+        from whisper_to_me.tray_icon import TrayIcon
 
         return TrayIcon(
             on_quit=on_quit,
