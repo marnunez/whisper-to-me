@@ -243,7 +243,18 @@ class TextProcessor:
             auth = self._refresh_pi_token(auth)
             self.logger.debug("Pi OAuth token refreshed", "processing")
 
-        return auth["access"]
+        token = auth["access"]
+
+        # Safety: verify this is an OAuth token (Max/Pro subscription),
+        # not a Console API key (pay-per-token)
+        if not token.startswith("sk-ant-oat"):
+            raise RuntimeError(
+                f"Pi auth token is not an OAuth token (prefix: {token[:12]}...). "
+                "The 'pi' backend only works with Max/Pro subscription OAuth tokens. "
+                "Use the 'anthropic' backend with an API key instead."
+            )
+
+        return token
 
     def _process_anthropic(self, text: str) -> str:
         """Process text using Anthropic API with pi's OAuth credentials."""
