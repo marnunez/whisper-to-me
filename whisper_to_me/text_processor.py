@@ -6,6 +6,7 @@ filler words, fix repetitions, and apply smart formatting.
 """
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -84,7 +85,7 @@ class TextProcessor:
         self.backend = backend
         self.model = model
         self.api_url = api_url
-        self.api_key = api_key
+        self.api_key = api_key or os.environ.get("WHISPER_TO_ME_API_KEY", "")
         self.temperature = temperature
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
         self.timeout = timeout
@@ -134,8 +135,11 @@ class TextProcessor:
         """Build the full system prompt with optional window context."""
         context = self._get_context_prompt()
         if context:
-            return f"{self.system_prompt}\n\n{context}"
-        return self.system_prompt
+            prompt = f"{self.system_prompt}\n\n{context}"
+        else:
+            prompt = self.system_prompt
+        self.logger.debug(f"System prompt:\n{prompt}", "processing")
+        return prompt
 
     def process(self, text: str) -> str:
         """
@@ -276,6 +280,7 @@ class TextProcessor:
         all_data = json.loads(_PI_AUTH_FILE.read_text())
         all_data["anthropic"] = new_auth
         _PI_AUTH_FILE.write_text(json.dumps(all_data, indent=2))
+        _PI_AUTH_FILE.chmod(0o600)
 
         return new_auth
 
@@ -295,7 +300,7 @@ class TextProcessor:
         # not a Console API key (pay-per-token)
         if not token.startswith("sk-ant-oat"):
             raise RuntimeError(
-                f"Pi auth token is not an OAuth token (prefix: {token[:12]}...). "
+                "Pi auth token does not have the expected OAuth prefix. "
                 "The 'pi' backend only works with Max/Pro subscription OAuth tokens. "
                 "Use the 'anthropic' backend with an API key instead."
             )
