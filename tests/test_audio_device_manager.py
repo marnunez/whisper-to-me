@@ -4,14 +4,13 @@ from unittest.mock import patch
 
 import pytest
 
-from whisper_to_me import (
+from whisper_to_me.audio_exceptions import (
     AudioConfigurationError,
-    AudioDevice,
     AudioDeviceInitializationError,
-    AudioDeviceManager,
     AudioDeviceTestError,
     NoAudioDevicesError,
 )
+from whisper_to_me.audio_device_manager import AudioDevice, AudioDeviceManager
 
 
 class TestAudioDevice:

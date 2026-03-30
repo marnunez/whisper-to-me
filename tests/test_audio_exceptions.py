@@ -1,6 +1,6 @@
 """Test audio exceptions functionality."""
 
-from whisper_to_me import (
+from whisper_to_me.audio_exceptions import (
     AudioConfigurationError,
     AudioDeviceInitializationError,
     AudioDeviceNotFoundError,

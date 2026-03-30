@@ -8,18 +8,18 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from whisper_to_me import (
+from whisper_to_me.config import (
     AdvancedConfig,
     AppConfig,
-    ComponentFactory,
     ConfigManager,
     GeneralConfig,
     ProcessingConfig,
-    ProfileManager,
     RecordingConfig,
-    SpeechProcessor,
     UIConfig,
 )
+from whisper_to_me.component_factory import ComponentFactory
+from whisper_to_me.profile_manager import ProfileManager
+from whisper_to_me.speech_processor import SpeechProcessor
 
 
 class TestProfileManager:

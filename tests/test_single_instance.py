@@ -6,7 +6,7 @@ import sys
 import time
 from pathlib import Path
 
-from whisper_to_me import SingleInstance
+from whisper_to_me.single_instance import SingleInstance
 
 
 class TestSingleInstance:
@@ -66,7 +66,7 @@ class TestSingleInstance:
         test_script = Path(__file__).parent / "test_instance_script.py"
         test_script.write_text("""
 import time
-from whisper_to_me import SingleInstance
+from whisper_to_me.single_instance import SingleInstance
 
 with SingleInstance():
     time.sleep(1)  # Hold lock for 1 second

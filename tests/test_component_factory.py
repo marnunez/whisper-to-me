@@ -5,14 +5,13 @@ from unittest.mock import Mock, patch
 import pytest
 
 from tests.conftest import create_test_audio_devices, create_test_hostapis
-from whisper_to_me import (
-    ApplicationStateManager,
-    AudioDeviceManager,
-    AudioRecorder,
-    ComponentFactory,
-    KeystrokeHandler,
-    SpeechProcessor,
-)
+from whisper_to_me.application_state_manager import ApplicationStateManager
+from whisper_to_me.audio_device_manager import AudioDeviceManager
+from whisper_to_me.audio_recorder import AudioRecorder
+from whisper_to_me.component_factory import ComponentFactory
+from whisper_to_me.keystroke_handler import KeystrokeHandler
+from whisper_to_me.speech_processor import SpeechProcessor
+
 
 
 @pytest.mark.usefixtures("isolated_xdg_runtime_dir")

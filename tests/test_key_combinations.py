@@ -3,7 +3,7 @@
 import pytest
 from pynput import keyboard
 
-from whisper_to_me import ConfigManager
+from whisper_to_me.config import ConfigManager
 
 
 class TestKeyCombinations:

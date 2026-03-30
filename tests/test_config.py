@@ -5,7 +5,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from whisper_to_me import (
+from whisper_to_me.config import (
     AdvancedConfig,
     AppConfig,
     ConfigManager,

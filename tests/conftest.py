@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from whisper_to_me import (
+from whisper_to_me.config import (
     AdvancedConfig,
     AppConfig,
     ConfigManager,

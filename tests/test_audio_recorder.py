@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 
-from whisper_to_me import AudioRecorder
+from whisper_to_me.audio_recorder import AudioRecorder
 
 
 class TestAudioRecorder:

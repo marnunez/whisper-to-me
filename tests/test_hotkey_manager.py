@@ -5,7 +5,9 @@ from unittest.mock import Mock
 import pytest
 from pynput import keyboard
 
-from whisper_to_me import AppConfig, DisplayBackend, HotkeyManager, RecordingConfig
+from whisper_to_me.config import AppConfig, RecordingConfig
+from whisper_to_me.display_backend import DisplayBackend
+from whisper_to_me.hotkey_manager import HotkeyManager
 
 
 class TestHotkeyManager:

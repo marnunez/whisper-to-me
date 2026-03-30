@@ -2,7 +2,8 @@
 
 from unittest.mock import Mock, call, patch
 
-from whisper_to_me import DisplayBackend, KeystrokeHandler
+from whisper_to_me.display_backend import DisplayBackend
+from whisper_to_me.keystroke_handler import KeystrokeHandler
 
 
 class TestKeystrokeHandler:
