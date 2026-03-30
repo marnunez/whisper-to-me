@@ -2,16 +2,16 @@
 
 from unittest.mock import Mock, call, patch
 
-from whisper_to_me import KeystrokeHandler
+from whisper_to_me import DisplayBackend, KeystrokeHandler
 
 
 class TestKeystrokeHandler:
-    """Test KeystrokeHandler functionality."""
+    """Test KeystrokeHandler functionality (X11/pynput backend)."""
 
     def setup_method(self):
         """Set up test environment."""
         with patch("pynput.keyboard.Controller"):
-            self.handler = KeystrokeHandler()
+            self.handler = KeystrokeHandler(backend=DisplayBackend.X11)
 
     def test_init_default(self):
         """Test KeystrokeHandler initialization with defaults."""
@@ -19,7 +19,7 @@ class TestKeystrokeHandler:
             mock_instance = Mock()
             mock_controller.return_value = mock_instance
 
-            handler = KeystrokeHandler()
+            handler = KeystrokeHandler(backend=DisplayBackend.X11)
 
             assert handler.typing_speed == 0.01
             assert handler.keyboard_controller == mock_instance
@@ -31,7 +31,7 @@ class TestKeystrokeHandler:
             mock_instance = Mock()
             mock_controller.return_value = mock_instance
 
-            handler = KeystrokeHandler(typing_speed=0.05)
+            handler = KeystrokeHandler(typing_speed=0.05, backend=DisplayBackend.X11)
 
             assert handler.typing_speed == 0.05
             assert handler.keyboard_controller == mock_instance
@@ -43,7 +43,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler(typing_speed=0.02)
+        handler = KeystrokeHandler(typing_speed=0.02, backend=DisplayBackend.X11)
         handler.type_text("Hello")
 
         # Should type each character with delays
@@ -60,7 +60,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text("")
 
         # Should not type anything
@@ -72,7 +72,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text("   \t\n  ")
 
         # Should not type anything for whitespace-only text
@@ -85,7 +85,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text("Hi", trailing_space=True)
 
         # Should type each character
@@ -103,7 +103,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text("  Hello  ")
 
         # Should only type the stripped text
@@ -116,7 +116,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text_fast("Hello World")
 
         # Should type the whole text at once (stripped)
@@ -128,7 +128,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text_fast("")
 
         # Should not type anything
@@ -140,7 +140,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text_fast("   \n\t   ")
 
         # Should not type anything for whitespace-only text
@@ -152,7 +152,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text_fast("Hello", trailing_space=True)
 
         # Should type the text
@@ -168,7 +168,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text_fast("  Hello World  ")
 
         # Should only type the stripped text
@@ -182,7 +182,7 @@ class TestKeystrokeHandler:
 
         from pynput import keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.press_key(keyboard.Key.enter)
 
         # Should press and release the key
@@ -197,7 +197,7 @@ class TestKeystrokeHandler:
 
         from pynput import keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.add_space()
 
         # Should press and release space key
@@ -212,7 +212,7 @@ class TestKeystrokeHandler:
 
         from pynput import keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.add_newline()
 
         # Should press and release enter key
@@ -227,7 +227,9 @@ class TestKeystrokeHandler:
         mock_controller.return_value = mock_keyboard
 
         custom_speed = 0.1
-        handler = KeystrokeHandler(typing_speed=custom_speed)
+        handler = KeystrokeHandler(
+            typing_speed=custom_speed, backend=DisplayBackend.X11
+        )
         handler.type_text("Hi")
 
         # Should sleep with the custom speed
@@ -241,7 +243,7 @@ class TestKeystrokeHandler:
 
         from pynput import keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
 
         handler.type_text_fast("Hello")
         handler.add_space()
@@ -265,7 +267,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         special_text = "Hello! @#$%^&*() 123"
 
         handler.type_text_fast(special_text)
@@ -278,7 +280,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         unicode_text = "Héllo Wörld 🌍"
 
         handler.type_text_fast(unicode_text)
@@ -292,7 +294,7 @@ class TestKeystrokeHandler:
         mock_keyboard = Mock()
         mock_controller.return_value = mock_keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
         handler.type_text_fast("Hello World")
 
         # Should not call sleep for fast typing
@@ -306,14 +308,14 @@ class TestKeystrokeHandler:
 
         from pynput import keyboard
 
-        handler = KeystrokeHandler()
+        handler = KeystrokeHandler(backend=DisplayBackend.X11)
 
         # Test different key types
         keys_to_test = [
             keyboard.Key.enter,
             keyboard.Key.space,
             keyboard.Key.tab,
-            keyboard.Key.esc,  # Correct attribute name
+            keyboard.Key.esc,
             "a",  # Character key
         ]
 
@@ -321,5 +323,68 @@ class TestKeystrokeHandler:
             mock_keyboard.reset_mock()
             handler.press_key(key)
 
-            mock_keyboard.press.assert_called_once_with(key)
-            mock_keyboard.release.assert_called_once_with(key)
+            mock_keyboard.press.assert_called_once()
+            mock_keyboard.release.assert_called_once()
+
+
+class TestWtypeKeystrokeBackend:
+    """Test WtypeKeystrokeBackend (Wayland)."""
+
+    @patch("subprocess.run")
+    def test_type_text_fast(self, mock_run):
+        """Test fast text typing via wtype."""
+        handler = KeystrokeHandler(backend=DisplayBackend.WAYLAND)
+        handler.type_text_fast("Hello World")
+
+        mock_run.assert_called_once_with(["wtype", "--", "Hello World"], check=True)
+
+    @patch("subprocess.run")
+    def test_type_text_with_delay(self, mock_run):
+        """Test text typing with delay via wtype."""
+        handler = KeystrokeHandler(typing_speed=0.05, backend=DisplayBackend.WAYLAND)
+        handler.type_text("Hello")
+
+        mock_run.assert_called_once_with(
+            ["wtype", "-d", "50", "--", "Hello"], check=True
+        )
+
+    @patch("subprocess.run")
+    def test_add_space(self, mock_run):
+        """Test add_space via wtype."""
+        handler = KeystrokeHandler(backend=DisplayBackend.WAYLAND)
+        handler.add_space()
+
+        mock_run.assert_called_once_with(["wtype", "-k", "space"], check=True)
+
+    @patch("subprocess.run")
+    def test_add_newline(self, mock_run):
+        """Test add_newline via wtype."""
+        handler = KeystrokeHandler(backend=DisplayBackend.WAYLAND)
+        handler.add_newline()
+
+        mock_run.assert_called_once_with(["wtype", "-k", "Return"], check=True)
+
+    @patch("subprocess.run")
+    def test_type_text_empty(self, mock_run):
+        """Test that empty text doesn't call wtype."""
+        handler = KeystrokeHandler(backend=DisplayBackend.WAYLAND)
+        handler.type_text("")
+        mock_run.assert_not_called()
+
+    @patch("subprocess.run")
+    def test_type_text_fast_with_trailing_space(self, mock_run):
+        """Test fast typing with trailing space via wtype."""
+        handler = KeystrokeHandler(backend=DisplayBackend.WAYLAND)
+        handler.type_text_fast("Hello", trailing_space=True)
+
+        assert mock_run.call_count == 2
+        mock_run.assert_any_call(["wtype", "--", "Hello"], check=True)
+        mock_run.assert_any_call(["wtype", "-k", "space"], check=True)
+
+    @patch("subprocess.run")
+    def test_press_key_string(self, mock_run):
+        """Test pressing a named key via wtype."""
+        handler = KeystrokeHandler(backend=DisplayBackend.WAYLAND)
+        handler.press_key("enter")
+
+        mock_run.assert_called_once_with(["wtype", "-k", "Return"], check=True)

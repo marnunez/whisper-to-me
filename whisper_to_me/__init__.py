@@ -25,6 +25,7 @@ from .config import (
     RecordingConfig,
     UIConfig,
 )
+from .display_backend import DisplayBackend, detect_backend, resolve_backend
 from .hotkey_manager import HotkeyManager
 
 # Input/Output handling
@@ -54,6 +55,10 @@ __all__ = [
     "RecordingConfig",
     "UIConfig",
     "AdvancedConfig",
+    # Display backend
+    "DisplayBackend",
+    "detect_backend",
+    "resolve_backend",
     # Management
     "ComponentFactory",
     "ProfileManager",

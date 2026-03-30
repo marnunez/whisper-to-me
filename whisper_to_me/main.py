@@ -23,11 +23,11 @@ Examples:
 
 import os
 
-from pynput import keyboard
-
 from whisper_to_me.audio_device_manager import AudioDeviceManager
 from whisper_to_me.audio_recorder import AudioRecorder
 from whisper_to_me.config import AppConfig, ConfigManager
+from whisper_to_me.display_backend import DisplayBackend, resolve_backend
+from whisper_to_me.hotkey_manager import HotkeyManager
 from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import LogLevel, get_logger, setup_logger
 from whisper_to_me.single_instance import SingleInstance
@@ -47,6 +47,7 @@ class WhisperToMe:
         self,
         config: AppConfig,
         config_manager: ConfigManager,
+        display_backend: DisplayBackend | None = None,
     ):
         """
         Initialize the Whisper-to-Me application.
@@ -54,9 +55,11 @@ class WhisperToMe:
         Args:
             config: Application configuration object
             config_manager: Configuration manager for profile switching
+            display_backend: Force a display backend (*None* = auto-detect)
         """
         self.config = config
         self.config_manager = config_manager
+        self.display_backend = display_backend
         self.is_recording = False
         self.recording_counter = 0
         self.tray_icon = None
@@ -66,6 +69,7 @@ class WhisperToMe:
         self.trigger_pressed = (
             False  # Track if trigger combination is currently pressed
         )
+        self.hotkey_manager: HotkeyManager | None = None
 
         # Extract current settings from config
         self._update_from_config()
@@ -126,7 +130,7 @@ class WhisperToMe:
             min_silence_duration_ms=self.config.advanced.min_silence_duration_ms,
             speech_pad_ms=self.config.advanced.speech_pad_ms,
         )
-        self.keystroke_handler = KeystrokeHandler()
+        self.keystroke_handler = KeystrokeHandler(backend=self.display_backend)
 
         # Initialize tray icon if enabled
         if self.config.ui.use_tray:
@@ -160,20 +164,32 @@ class WhisperToMe:
 
     def _update_from_config(self):
         """Update instance variables from current configuration."""
-        # Create HotKey objects for trigger and discard keys
-        trigger_keys = keyboard.HotKey.parse(self.config.recording.trigger_key)
-        discard_keys = keyboard.HotKey.parse(self.config.recording.discard_key)
-
-        # Create HotKey instances with appropriate callbacks
-        if self.config.recording.mode == "tap-mode":
-            self.trigger_hotkey = keyboard.HotKey(trigger_keys, self._on_trigger_tap)
-            self.discard_hotkey = keyboard.HotKey(discard_keys, self._on_discard_tap)
-        else:
-            self.trigger_hotkey = keyboard.HotKey(trigger_keys, self._on_trigger_press)
-            # In push-to-talk mode, we need to handle release separately
-            self.discard_hotkey = None  # Not used in push-to-talk mode
         self.debug = self.config.general.debug
         self.tap_mode = self.config.recording.mode == "tap-mode"
+
+        # Set up hotkey manager (creates/updates the backend-appropriate handler)
+        if self.hotkey_manager is None:
+            self.hotkey_manager = HotkeyManager(
+                self.config, backend=self.display_backend
+            )
+        else:
+            self.hotkey_manager.update_config(self.config)
+
+        # Wire callbacks
+        if self.tap_mode:
+            self.hotkey_manager.set_callbacks(
+                on_trigger_tap=self._on_trigger_tap,
+                on_discard_tap=self._on_discard_tap,
+            )
+        else:
+            self.hotkey_manager.set_callbacks(
+                on_trigger_press=self._on_trigger_press,
+                on_trigger_release=self._on_push_to_talk_release,
+            )
+
+        # Expose for backward compat
+        self.trigger_hotkey = self.hotkey_manager.trigger_hotkey
+        self.discard_hotkey = self.hotkey_manager.discard_hotkey
 
     def switch_profile(self, profile_name: str):
         """Switch to a different profile and update configuration."""
@@ -349,28 +365,21 @@ class WhisperToMe:
         if self.is_recording:
             self._discard_recording()
 
-    def on_key_press(self, key):
-        """Handle key press events using HotKey state tracking."""
-        # Let HotKey objects handle the state tracking
-        canonical_key = self.listener.canonical(key)
-        if self.trigger_hotkey:
-            self.trigger_hotkey.press(canonical_key)
-        if self.discard_hotkey:
-            self.discard_hotkey.press(canonical_key)
-
-    def on_key_release(self, key):
-        """Handle key release events using HotKey state tracking."""
-        # Let HotKey objects handle the state tracking
-        canonical_key = self.listener.canonical(key)
-        if self.trigger_hotkey:
-            self.trigger_hotkey.release(canonical_key)
-        if self.discard_hotkey:
-            self.discard_hotkey.release(canonical_key)
-
-        # In push-to-talk mode, stop recording when any key is released after trigger was pressed
-        if not self.tap_mode and self.trigger_pressed and self.is_recording:
+    def _on_push_to_talk_release(self):
+        """Handle key release in push-to-talk mode."""
+        if self.trigger_pressed and self.is_recording:
             self.trigger_pressed = False
             self._stop_and_transcribe()
+
+    def on_key_press(self, key):
+        """Handle key press events — delegates to hotkey manager."""
+        if self.hotkey_manager:
+            self.hotkey_manager.on_key_press(key)
+
+    def on_key_release(self, key):
+        """Handle key release events — delegates to hotkey manager."""
+        if self.hotkey_manager:
+            self.hotkey_manager.on_key_release(key)
 
     def _stop_and_transcribe(self):
         """Stop recording and transcribe the audio."""
@@ -435,11 +444,9 @@ class WhisperToMe:
         Sets up keyboard listeners and runs until interrupted with Ctrl+C.
         """
         try:
-            self.listener = keyboard.Listener(
-                on_press=self.on_key_press, on_release=self.on_key_release
-            )
-            self.listener.start()
-            self.listener.join()
+            self.hotkey_manager.start_listening()
+            self.listener = self.hotkey_manager.listener
+            self.hotkey_manager.join_listener()
         except KeyboardInterrupt:
             pass
         finally:
@@ -588,6 +595,12 @@ Examples:
         "--speech-pad-ms",
         type=int,
         help="Amount of padding to keep around detected speech (in milliseconds, default: 400)",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=["x11", "wayland"],
+        default=None,
+        help="Display backend for input handling (default: auto-detect)",
     )
 
     args = parser.parse_args()
@@ -765,9 +778,12 @@ Examples:
         )
         return
 
+    # Resolve display backend
+    display_backend = resolve_backend(args.backend)
+
     # Ensure single instance and run application
     with SingleInstance():
-        app = WhisperToMe(config, config_manager)
+        app = WhisperToMe(config, config_manager, display_backend=display_backend)
         app.run()
 
 

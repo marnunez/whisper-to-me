@@ -33,6 +33,11 @@ dependencies = [
     "tomli-w>=1.2.0",
 ]
 
+[project.optional-dependencies]
+wayland = [
+    "evdev>=1.7.0",
+]
+
 [project.scripts]
 whisper-to-me = "whisper_to_me.main:main"
 

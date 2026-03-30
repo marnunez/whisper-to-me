@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.12"
 
 [[package]]
@@ -489,6 +489,8 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/59/a7/c3e5ed55781dfe1b31eb4a2482aeae707671f3d36b0ea53a1722f4a3dfe9/pycairo-1.28.0-cp313-cp313-win32.whl", hash = "sha256:d13352429d8a08a1cb3607767d23d2fb32e4c4f9faa642155383980ec1478c24", size = 750594, upload-time = "2025-04-14T20:10:59.284Z" },
     { url = "https://files.pythonhosted.org/packages/8b/1c/ebadd290748aff3b6bc35431114d41e7a42f40a4b988c2aaf2dfed5d8156/pycairo-1.28.0-cp313-cp313-win_amd64.whl", hash = "sha256:082aef6b3a9dcc328fa648d38ed6b0a31c863e903ead57dd184b2e5f86790140", size = 841774, upload-time = "2025-04-14T20:11:01.79Z" },
     { url = "https://files.pythonhosted.org/packages/3e/ce/a3f5f1946613cd8a4654322b878c59f273c6e9b01dfadadd3f609070e0b9/pycairo-1.28.0-cp313-cp313-win_arm64.whl", hash = "sha256:026afd53b75291917a7412d9fe46dcfbaa0c028febd46ff1132d44a53ac2c8b6", size = 691675, upload-time = "2025-04-16T19:30:26.565Z" },
+    { url = "https://files.pythonhosted.org/packages/96/1b/1f5da2b2e44b33a5b269ff28af710b0a7903001d9cf8a40d00fc944a5092/pycairo-1.28.0-cp314-cp314-win32.whl", hash = "sha256:d0ab30585f536101ad6f09052fc3895e2a437ba57531ea07223d0e076248025d", size = 766699, upload-time = "2025-07-24T06:36:07.267Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/91/1d5f18bd3ed469b1de8f83bfbf8bd67d23439f075151b66740fd35356190/pycairo-1.28.0-cp314-cp314-win_amd64.whl", hash = "sha256:94f2ed204999ab95a0671a0fa948ffbb9f3d6fb8731fe787917f6d022d9c1c0f", size = 868725, upload-time = "2025-07-24T06:36:09.597Z" },
 ]
 
 [[package]]
@@ -619,19 +621,15 @@ wheels = [
 
 [[package]]
 name = "pyobject"
-version = "1.3.2"
+version = "1.3.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9f/18/f2dd7ca5d2466eb4cc84a6c1107d80c9b05f86805e0a10dc3775d75a5440/pyobject-1.3.2.tar.gz", hash = "sha256:ab4208fa69af5f5c34db750c2a7742963e5c2930be7be428fd7485ca9dcdb357", size = 63607, upload-time = "2025-06-23T08:20:12.559Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ad/72/05d0c6200cc427e0d6df3f0d28866d58cab52b10a8b1578e76ee7135a769/pyobject-1.3.4.tar.gz", hash = "sha256:d66936df2dcc062c38e3978b39ef2f9102ea3b0335118c9ca7806654a8f9d130", size = 56589, upload-time = "2026-01-21T21:05:20.186Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/2d/94e6ece9304c28d716209ae757e3af843ceefab29bd73007aae8168ee176/pyobject-1.3.2-cp312-cp312-win32.whl", hash = "sha256:95890d1a753260be3c7dfd89b4375391aaa7498b9d7eb49876fca2b0054252f9", size = 65386, upload-time = "2025-06-23T08:21:05.659Z" },
-    { url = "https://files.pythonhosted.org/packages/68/93/aa655d0bbaf393f3dcfd5ca9bb6dbc0cd42c8d0a22df2bbe3b00fe79d75d/pyobject-1.3.2-cp312-cp312-win_amd64.whl", hash = "sha256:7becde12befee81a6e23d1af54a14d1355ce4e11e758d2048035c4185552a589", size = 66026, upload-time = "2025-06-23T08:20:49.823Z" },
-    { url = "https://files.pythonhosted.org/packages/bf/05/3ad120544032267dca9a59a67a3a5c41feafae70084d82bab311d1967c88/pyobject-1.3.2-cp313-cp313-win32.whl", hash = "sha256:016c72e7748ffa55d46e95cbea5ed24d69a2a0986ef09e57ea0424d626510e0f", size = 65501, upload-time = "2025-06-23T08:21:06.611Z" },
-    { url = "https://files.pythonhosted.org/packages/0b/e3/3236a8ba26b561cf617cca8be7d7cc5033c27723aac839ce142d52a7a462/pyobject-1.3.2-cp313-cp313-win_amd64.whl", hash = "sha256:e0e863bcfb2a4be09d45868931f65f8381003b07ecf33309d056f50851984f19", size = 66055, upload-time = "2025-06-23T08:20:48.402Z" },
-    { url = "https://files.pythonhosted.org/packages/e5/e1/4289fbfc7d7009e8a61a12cb47da372831c6e09e67506ebba2cf0ae8f59b/pyobject-1.3.2-cp313-cp313t-win32.whl", hash = "sha256:b5be51f8bdf43c3dce85758bced8aa98ac28125dbb2a4d6dd72f0cc6f545c276", size = 65507, upload-time = "2025-06-23T08:21:04.693Z" },
-    { url = "https://files.pythonhosted.org/packages/90/e2/b89ec59baba7031615bf5ad026ac34eccdde7df7a3edf4006c6ff564dad3/pyobject-1.3.2-cp313-cp313t-win_amd64.whl", hash = "sha256:0993b06b10635dbab7fbe151f1010bd085dcf1ec3b0b000a2affe83725fc0ca1", size = 66060, upload-time = "2025-06-23T08:20:47.151Z" },
-    { url = "https://files.pythonhosted.org/packages/08/50/1b2a2608567f9cbcaca6897ef67d739a753a6b3bc327ba895d6ed31930a6/pyobject-1.3.2-cp314-cp314-win32.whl", hash = "sha256:f04b5f71212d044f46e39ee278b065847aaea1f2300afde6112bab0544250f8b", size = 65502, upload-time = "2025-06-23T08:21:03.796Z" },
-    { url = "https://files.pythonhosted.org/packages/2a/27/199ff43a883fd3e2a33a65f07f464ee2dea572c89be00accfeb5d129098a/pyobject-1.3.2-cp314-cp314-win_amd64.whl", hash = "sha256:f7e2364b8369a8a4cff0391368e872a91ba38e2653d2d185da5840cb7bcc7bfe", size = 66996, upload-time = "2025-06-23T08:21:15.926Z" },
-    { url = "https://files.pythonhosted.org/packages/9a/f3/a1ed97fd09dea8521c171d17fac8bce7d8ebc38cd80fbaaa034cb97feaae/pyobject-1.3.2-cp314-cp314t-win_amd64.whl", hash = "sha256:d8a2d649814c6385e1f54b335df484e1b799c3803247f4230b682619abab1e39", size = 67650, upload-time = "2025-06-23T08:21:14.227Z" },
+    { url = "https://files.pythonhosted.org/packages/ce/9b/e6f28deeec8945a4277db7be62edec3be6b2ba853249e0889f2ad63f7e98/pyobject-1.3.4-cp312-cp312-win_amd64.whl", hash = "sha256:994fa915a13e14b58ca6da144344ddc9cb306a81c97063bf4402626321a7be92", size = 54132, upload-time = "2026-01-21T21:07:11.473Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/74/0a1b21f4000143e935a0fb9f0380865f8ae41b9ef3d615a168b68b4474bc/pyobject-1.3.4-cp313-cp313-win_amd64.whl", hash = "sha256:c3b0ee5262739207dbaf9e4cb759a043b50fbd55462eeefe2d6adf9110775826", size = 54218, upload-time = "2026-01-21T21:07:12.83Z" },
+    { url = "https://files.pythonhosted.org/packages/99/b5/166b1b9025743998205a040dbff47e7e61a86821ec8c8678355cfabb66f9/pyobject-1.3.4-cp313-cp313t-win_amd64.whl", hash = "sha256:851c49384daedc444473640a9cc3db264aac5b64da3e9b01f742a2e1f821d375", size = 54886, upload-time = "2026-01-21T21:07:10.502Z" },
+    { url = "https://files.pythonhosted.org/packages/11/88/06376afbe921e7f45da06d391ed533558c6e3d5a3752e12923cb917366e0/pyobject-1.3.4-cp314-cp314-win_amd64.whl", hash = "sha256:44fbe678b5f6db2c61c4dc0c31fd6b1359938456aca45bd8fd6136db6b748e19", size = 54934, upload-time = "2026-01-21T21:07:09.554Z" },
+    { url = "https://files.pythonhosted.org/packages/91/91/cf88fbde5d0db892e9fe459ed3e284dfe59054ab92a9baf53b1d5fcecd83/pyobject-1.3.4-cp314-cp314t-win_amd64.whl", hash = "sha256:8550116cac01e3e7f6f078410610ceab47ad162275786979698c4ead59a3cc8e", size = 55622, upload-time = "2026-01-21T21:07:08.581Z" },
 ]
 
 [[package]]
@@ -912,6 +910,11 @@ dependencies = [
     { name = "tomli-w" },
 ]
 
+[package.optional-dependencies]
+wayland = [
+    { name = "evdev" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -921,6 +924,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "evdev", marker = "extra == 'wayland'", specifier = ">=1.7.0" },
     { name = "faster-whisper", specifier = ">=1.1.1" },
     { name = "numpy", specifier = ">=2.3.1" },
     { name = "pillow", specifier = ">=11.3.0" },
@@ -934,6 +938,7 @@ requires-dist = [
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "tomli-w", specifier = ">=1.2.0" },
 ]
+provides-extras = ["wayland"]
 
 [package.metadata.requires-dev]
 dev = [

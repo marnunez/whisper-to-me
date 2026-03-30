@@ -5,7 +5,10 @@ Handles creation and configuration of application components with dependency inj
 Reduces tight coupling in the main application class.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 from whisper_to_me.application_state_manager import ApplicationStateManager
 from whisper_to_me.audio_device_manager import AudioDeviceManager
@@ -15,6 +18,9 @@ from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import get_logger
 from whisper_to_me.speech_processor import SpeechProcessor
 from whisper_to_me.tray_icon import TrayIcon
+
+if TYPE_CHECKING:
+    from whisper_to_me.display_backend import DisplayBackend
 
 
 class ComponentFactory:
@@ -28,16 +34,23 @@ class ComponentFactory:
     - Error handling for component failures
     """
 
-    def __init__(self, config: AppConfig, config_manager: ConfigManager):
+    def __init__(
+        self,
+        config: AppConfig,
+        config_manager: ConfigManager,
+        display_backend: DisplayBackend | None = None,
+    ):
         """
         Initialize the component factory.
 
         Args:
             config: Application configuration
             config_manager: Configuration manager for profile operations
+            display_backend: Force a display backend (*None* = auto-detect)
         """
         self.config = config
         self.config_manager = config_manager
+        self.display_backend = display_backend
         self.state_manager = ApplicationStateManager()
         self.logger = get_logger()
 
@@ -126,7 +139,7 @@ class ComponentFactory:
         Returns:
             Configured KeystrokeHandler instance
         """
-        return KeystrokeHandler()
+        return KeystrokeHandler(backend=self.display_backend)
 
     def create_tray_icon(
         self,
