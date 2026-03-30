@@ -424,7 +424,7 @@ class WhisperToMe:
             if self.debug:
                 from datetime import datetime
 
-                import soundfile as sf
+                import soundfile as sf  # type: ignore[import-unresolved]
 
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]
                 debug_filename = f"debug_recording_{timestamp}.wav"
@@ -478,6 +478,7 @@ class WhisperToMe:
         Sets up keyboard listeners and runs until interrupted with Ctrl+C.
         """
         try:
+            assert self.hotkey_manager is not None
             self.hotkey_manager.start_listening()
             self.listener = self.hotkey_manager.listener
             self.hotkey_manager.join_listener()
