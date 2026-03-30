@@ -902,19 +902,6 @@ wheels = [
 ]
 
 [[package]]
-name = "pyobject"
-version = "1.3.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/ad/72/05d0c6200cc427e0d6df3f0d28866d58cab52b10a8b1578e76ee7135a769/pyobject-1.3.4.tar.gz", hash = "sha256:d66936df2dcc062c38e3978b39ef2f9102ea3b0335118c9ca7806654a8f9d130", size = 56589, upload-time = "2026-01-21T21:05:20.186Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/9b/e6f28deeec8945a4277db7be62edec3be6b2ba853249e0889f2ad63f7e98/pyobject-1.3.4-cp312-cp312-win_amd64.whl", hash = "sha256:994fa915a13e14b58ca6da144344ddc9cb306a81c97063bf4402626321a7be92", size = 54132, upload-time = "2026-01-21T21:07:11.473Z" },
-    { url = "https://files.pythonhosted.org/packages/3b/74/0a1b21f4000143e935a0fb9f0380865f8ae41b9ef3d615a168b68b4474bc/pyobject-1.3.4-cp313-cp313-win_amd64.whl", hash = "sha256:c3b0ee5262739207dbaf9e4cb759a043b50fbd55462eeefe2d6adf9110775826", size = 54218, upload-time = "2026-01-21T21:07:12.83Z" },
-    { url = "https://files.pythonhosted.org/packages/99/b5/166b1b9025743998205a040dbff47e7e61a86821ec8c8678355cfabb66f9/pyobject-1.3.4-cp313-cp313t-win_amd64.whl", hash = "sha256:851c49384daedc444473640a9cc3db264aac5b64da3e9b01f742a2e1f821d375", size = 54886, upload-time = "2026-01-21T21:07:10.502Z" },
-    { url = "https://files.pythonhosted.org/packages/11/88/06376afbe921e7f45da06d391ed533558c6e3d5a3752e12923cb917366e0/pyobject-1.3.4-cp314-cp314-win_amd64.whl", hash = "sha256:44fbe678b5f6db2c61c4dc0c31fd6b1359938456aca45bd8fd6136db6b748e19", size = 54934, upload-time = "2026-01-21T21:07:09.554Z" },
-    { url = "https://files.pythonhosted.org/packages/91/91/cf88fbde5d0db892e9fe459ed3e284dfe59054ab92a9baf53b1d5fcecd83/pyobject-1.3.4-cp314-cp314t-win_amd64.whl", hash = "sha256:8550116cac01e3e7f6f078410610ceab47ad162275786979698c4ead59a3cc8e", size = 55622, upload-time = "2026-01-21T21:07:08.581Z" },
-]
-
-[[package]]
 name = "pyreadline3"
 version = "3.5.4"
 source = { registry = "https://pypi.org/simple" }
@@ -1205,9 +1192,7 @@ dependencies = [
     { name = "pycairo" },
     { name = "pygobject" },
     { name = "pynput" },
-    { name = "pyobject" },
     { name = "pystray" },
-    { name = "pyyaml" },
     { name = "sounddevice" },
     { name = "soundfile" },
     { name = "tomli-w" },
@@ -1258,9 +1243,7 @@ requires-dist = [
     { name = "pycairo", specifier = ">=1.28.0" },
     { name = "pygobject", specifier = ">=3.52.3" },
     { name = "pynput", specifier = ">=1.8.1" },
-    { name = "pyobject", specifier = ">=1.3.2" },
     { name = "pystray", specifier = ">=0.19.5" },
-    { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "sounddevice", specifier = ">=0.5.2" },
     { name = "soundfile", specifier = ">=0.13.1" },
     { name = "tomli-w", specifier = ">=1.2.0" },

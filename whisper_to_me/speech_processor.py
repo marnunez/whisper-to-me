@@ -101,7 +101,6 @@ class SpeechProcessor:
             return best_lang
         except Exception:
             return None
-            raise
 
     def _check_initial_prompt_truncation(self, detected_language: str) -> None:
         """Check if initial prompt was truncated and warn user."""

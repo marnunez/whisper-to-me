@@ -352,32 +352,31 @@ class WhisperToMe:
 
         self.logger.device_switched(target_device.name)
 
-        # Use device manager to switch
-        if self.device_manager.switch_device(target_device):
-            try:
-                # Create new audio recorder with the new device
-                self.audio_recorder = AudioRecorder(
-                    device_id=target_device.id, device_name=target_device.name
-                )
+        # Use device manager to switch (raises AudioDeviceTestError on failure)
+        try:
+            self.device_manager.switch_device(target_device)
 
-                # Update config with new device
-                self.config.recording.audio_device = (
-                    self.device_manager.get_device_config()
-                )
-                self.config_manager.save_config()
+            # Create new audio recorder with the new device
+            self.audio_recorder = AudioRecorder(
+                device_id=target_device.id, device_name=target_device.name
+            )
 
-                # Refresh tray menu to update device list
-                if hasattr(self, "tray_icon") and self.tray_icon:
-                    self.tray_icon.refresh_menu()
+            # Update config with new device
+            self.config.recording.audio_device = (
+                self.device_manager.get_device_config()
+            )
+            self.config_manager.save_config()
 
-                self.logger.success("Audio device switch completed", "device")
-            except Exception as e:
-                self.logger.error(
-                    f"Failed to initialize recorder with device '{target_device.name}': {e}",
-                    "audio",
-                )
-                self.logger.info("Keeping current audio device.", "device")
-        else:
+            # Refresh tray menu to update device list
+            if hasattr(self, "tray_icon") and self.tray_icon:
+                self.tray_icon.refresh_menu()
+
+            self.logger.success("Audio device switch completed", "device")
+        except Exception as e:
+            self.logger.error(
+                f"Failed to switch to device '{target_device.name}': {e}",
+                "audio",
+            )
             self.logger.info("Keeping current audio device.", "device")
 
     def _on_trigger_tap(self):
