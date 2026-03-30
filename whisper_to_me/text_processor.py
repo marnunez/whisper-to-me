@@ -5,9 +5,17 @@ Provides optional LLM-based post-processing of transcribed text to clean up
 filler words, fix repetitions, and apply smart formatting.
 """
 
+import json
+import time
+from pathlib import Path
 from typing import Any
 
 from whisper_to_me.logger import get_logger
+
+# Pi OAuth constants (from pi-ai/anthropic.js)
+_PI_AUTH_FILE = Path.home() / ".pi" / "agent" / "auth.json"
+_ANTHROPIC_TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
+_ANTHROPIC_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 
 # Default system prompt for LLM text cleanup
 DEFAULT_SYSTEM_PROMPT = """\
@@ -58,6 +66,7 @@ class TextProcessor:
         temperature: float = 0.3,
         system_prompt: str = "",
         timeout: int = 10,
+        thinking: bool | str = False,
     ):
         """
         Initialize the text processor.
@@ -71,6 +80,7 @@ class TextProcessor:
             temperature: Sampling temperature (lower = more faithful)
             system_prompt: Custom system prompt (empty = use default)
             timeout: Timeout in seconds for LLM calls
+            thinking: False to disable, True to enable, "low" for budget thinking
         """
         self.enabled = enabled
         self.backend = backend
@@ -80,6 +90,7 @@ class TextProcessor:
         self.temperature = temperature
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
         self.timeout = timeout
+        self.thinking = thinking
         self.logger = get_logger()
 
         if self.enabled:
@@ -106,6 +117,8 @@ class TextProcessor:
                 result = self._process_ollama(text)
             elif self.backend == "openai":
                 result = self._process_openai(text)
+            elif self.backend in ("anthropic", "pi"):
+                result = self._process_anthropic(text)
             else:
                 self.logger.warning(
                     f"Unknown processing backend '{self.backend}', using raw text",
@@ -143,18 +156,121 @@ class TextProcessor:
             client_kwargs["host"] = self.api_url
 
         client = ollama.Client(**client_kwargs)
+
+        # Qwen3-style thinking control:
+        # /no_think disables reasoning, /think enables it
+        if not self.thinking:
+            user_content = f"/no_think\n{text}"
+        elif self.thinking == "low":
+            user_content = f"/think\n{text}"
+        else:
+            user_content = text
+
         response = client.chat(
             model=self.model,
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": text},
+                {"role": "user", "content": user_content},
             ],
             options={
                 "temperature": self.temperature,
             },
+            # think=True separates reasoning into .thinking field (clean content)
+            # think=False is broken in Ollama <=0.18 (dumps thinking into content)
+            # So: always use think=True, and prepend /no_think when thinking is disabled
+            think=True,
         )
 
         return response.message.content
+
+    @staticmethod
+    def _load_pi_auth() -> dict[str, Any]:
+        """Load and return the Anthropic OAuth credentials from pi's auth.json."""
+        if not _PI_AUTH_FILE.exists():
+            raise RuntimeError(
+                f"Pi auth file not found at {_PI_AUTH_FILE}. "
+                "Run 'pi' and authenticate with your Anthropic account first."
+            )
+        data = json.loads(_PI_AUTH_FILE.read_text())
+        auth = data.get("anthropic")
+        if not auth or auth.get("type") != "oauth":
+            raise RuntimeError(
+                "No Anthropic OAuth credentials in pi auth file. "
+                "Run 'pi' and authenticate with your Anthropic account."
+            )
+        return auth
+
+    @staticmethod
+    def _refresh_pi_token(auth: dict[str, Any]) -> dict[str, Any]:
+        """Refresh the Anthropic OAuth access token using the refresh token."""
+        import urllib.request
+
+        body = json.dumps({
+            "grant_type": "refresh_token",
+            "client_id": _ANTHROPIC_CLIENT_ID,
+            "refresh_token": auth["refresh"],
+        }).encode()
+
+        req = urllib.request.Request(
+            _ANTHROPIC_TOKEN_URL,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            token_data = json.loads(resp.read())
+
+        new_auth = {
+            **auth,
+            "access": token_data["access_token"],
+            "refresh": token_data["refresh_token"],
+            "expires": int(time.time() * 1000)
+            + token_data["expires_in"] * 1000
+            - 5 * 60 * 1000,  # 5 min buffer, same as pi
+        }
+
+        # Write back to auth.json
+        all_data = json.loads(_PI_AUTH_FILE.read_text())
+        all_data["anthropic"] = new_auth
+        _PI_AUTH_FILE.write_text(json.dumps(all_data, indent=2))
+
+        return new_auth
+
+    def _get_pi_access_token(self) -> str:
+        """Get a valid Anthropic access token, refreshing if expired."""
+        auth = self._load_pi_auth()
+
+        # Check if token is expired (expires is in milliseconds)
+        if auth.get("expires", 0) < time.time() * 1000:
+            self.logger.debug("Pi OAuth token expired, refreshing...", "processing")
+            auth = self._refresh_pi_token(auth)
+            self.logger.debug("Pi OAuth token refreshed", "processing")
+
+        return auth["access"]
+
+    def _process_anthropic(self, text: str) -> str:
+        """Process text using Anthropic API with pi's OAuth credentials."""
+        try:
+            import anthropic
+        except ImportError as e:
+            raise RuntimeError(
+                "anthropic package not installed. Install with: uv add anthropic"
+            ) from e
+
+        api_key = self.api_key or self._get_pi_access_token()
+        client = anthropic.Anthropic(api_key=api_key, timeout=self.timeout)
+
+        response = client.messages.create(
+            model=self.model,
+            max_tokens=1024,
+            system=self.system_prompt,
+            messages=[{"role": "user", "content": text}],
+            temperature=self.temperature,
+        )
+
+        return response.content[0].text
 
     def _process_openai(self, text: str) -> str:
         """Process text using the OpenAI-compatible backend."""

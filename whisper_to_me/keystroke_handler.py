@@ -114,12 +114,27 @@ class WtypeKeystrokeBackend:
     def _run_wtype(*args: str) -> None:
         subprocess.run(["wtype", *args], check=True)  # noqa: S603, S607
 
+    @staticmethod
+    def _run_wtype_lines(text: str, delay_args: list[str] | None = None) -> None:
+        """Type text, sending Shift+Enter for newlines instead of Enter."""
+        lines = text.split("\n")
+        for i, line in enumerate(lines):
+            if line:
+                args = ["wtype"] + (delay_args or []) + ["--", line]
+                subprocess.run(args, check=True)  # noqa: S603, S607
+            if i < len(lines) - 1:
+                # Shift+Enter = newline without submit
+                subprocess.run(
+                    ["wtype", "-M", "shift", "-k", "Return", "-m", "shift"],
+                    check=True,
+                )  # noqa: S603, S607
+
     def type_text(self, text: str) -> None:
         delay_ms = max(1, int(self.typing_speed * 1000))
-        self._run_wtype("-d", str(delay_ms), "--", text)
+        self._run_wtype_lines(text, ["-d", str(delay_ms)])
 
     def type_text_fast(self, text: str) -> None:
-        self._run_wtype("--", text)
+        self._run_wtype_lines(text)
 
     def press_key(self, key: str) -> None:
         xkb_name = _WTYPE_KEY_MAP.get(key.lower() if isinstance(key, str) else key, key)

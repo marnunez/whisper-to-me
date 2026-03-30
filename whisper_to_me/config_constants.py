@@ -92,6 +92,8 @@ class ProcessingBackends:
 
     OLLAMA: Final[str] = "ollama"
     OPENAI: Final[str] = "openai"
+    ANTHROPIC: Final[str] = "anthropic"
+    PI: Final[str] = "pi"  # alias for anthropic, uses pi's OAuth credentials
 
 
 # Recording modes

@@ -40,9 +40,12 @@ wayland = [
 llm = [
     "ollama>=0.4.0",
     "openai>=1.0.0",
+    "anthropic>=0.40.0",
 ]
 ollama = ["ollama>=0.4.0"]
 openai = ["openai>=1.0.0"]
+anthropic = ["anthropic>=0.40.0"]
+pi = ["anthropic>=0.40.0"]
 [project.scripts]
 whisper-to-me = "whisper_to_me.main:main"
 

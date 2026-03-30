@@ -86,6 +86,7 @@ class ProcessingConfig:
     temperature: float = 0.3
     system_prompt: str = ""
     timeout: int = 10
+    thinking: bool | str = False  # False, True, or "low" for budget thinking
 
 
 @dataclass

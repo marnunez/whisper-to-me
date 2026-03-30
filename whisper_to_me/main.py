@@ -143,6 +143,7 @@ class WhisperToMe:
             temperature=self.config.processing.temperature,
             system_prompt=self.config.processing.system_prompt,
             timeout=self.config.processing.timeout,
+            thinking=self.config.processing.thinking,
         )
 
         # Initialize tray icon if enabled
@@ -283,6 +284,7 @@ class WhisperToMe:
             temperature=new_config.processing.temperature,
             system_prompt=new_config.processing.system_prompt,
             timeout=new_config.processing.timeout,
+            thinking=new_config.processing.thinking,
         )
 
         # Save the profile switch
@@ -657,13 +659,19 @@ Examples:
     )
     parser.add_argument(
         "--processing-backend",
-        choices=["ollama", "openai"],
-        help="LLM backend for text processing (ollama or openai)",
+        choices=["ollama", "openai", "anthropic", "pi"],
+        help="LLM backend for text processing (ollama, openai, anthropic, or pi)",
     )
     parser.add_argument(
         "--processing-model",
         type=str,
         help="Model name for LLM text processing",
+    )
+    parser.add_argument(
+        "--processing-thinking",
+        choices=["off", "on", "low"],
+        default=None,
+        help="LLM thinking mode: off (default), on, or low",
     )
 
     args = parser.parse_args()
@@ -814,6 +822,9 @@ Examples:
         config.processing.backend = args.processing_backend
     if args.processing_model is not None:
         config.processing.model = args.processing_model
+    if args.processing_thinking is not None:
+        thinking_map = {"off": False, "on": True, "low": "low"}
+        config.processing.thinking = thinking_map[args.processing_thinking]
 
     # Handle profile creation
     if args.create_profile:
