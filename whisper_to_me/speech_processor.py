@@ -29,6 +29,7 @@ class SpeechProcessor:
         model_size: str = "base",
         device: str = "cpu",
         language: str | None = None,
+        allowed_languages: list[str] | None = None,
         vad_filter: bool = True,
         initial_prompt: str = "",
         min_silence_duration_ms: int = 2000,
@@ -41,6 +42,7 @@ class SpeechProcessor:
             model_size: Whisper model size (tiny, base, small, medium, large-v3)
             device: Processing device (cpu, cuda)
             language: Target language for transcription (None for auto-detection, en, es, fr, etc.)
+            allowed_languages: Restrict auto-detection to these languages (e.g. ["en", "es"])
             vad_filter: Enable Voice Activity Detection to filter silence
             initial_prompt: Initial prompt to guide transcription (max 224 tokens)
             min_silence_duration_ms: Minimum duration of silence to split segments (in milliseconds)
@@ -49,6 +51,7 @@ class SpeechProcessor:
         self.model_size = model_size
         self.device = device
         self.language = language
+        self.allowed_languages = allowed_languages
         self.vad_filter = vad_filter
         self.initial_prompt = initial_prompt
         self.min_silence_duration_ms = min_silence_duration_ms
@@ -77,6 +80,29 @@ class SpeechProcessor:
             self.logger.success("Model loaded successfully", "model")
         except Exception as e:
             self.logger.error(f"Error loading model: {e}", "model")
+
+    def _detect_among(
+        self, audio_data: np.ndarray, allowed: list[str]
+    ) -> str | None:
+        """Detect language from a restricted set using probability scores."""
+        if self.model is None:
+            return None
+        try:
+            _lang, _prob, all_probs = self.model.detect_language(audio_data)
+            best_lang = None
+            best_prob = -1.0
+            for code, prob in all_probs:
+                if code in allowed and prob > best_prob:
+                    best_lang = code
+                    best_prob = prob
+            if best_lang:
+                self.logger.debug(
+                    f"Detected {best_lang} (p={best_prob:.2f}) from {allowed}",
+                    "speech",
+                )
+            return best_lang
+        except Exception:
+            return None
             raise
 
     def _check_initial_prompt_truncation(self, detected_language: str) -> None:
@@ -132,9 +158,16 @@ class SpeechProcessor:
                 "condition_on_previous_text": False,
             }
 
-            # Only specify language if set (None enables auto-detection)
+            # Language selection:
+            # 1. Explicit language → use directly
+            # 2. allowed_languages → detect among subset
+            # 3. Neither → full auto-detection
             if self.language is not None:
                 transcribe_params["language"] = self.language
+            elif self.allowed_languages:
+                detected = self._detect_among(audio_data, self.allowed_languages)
+                if detected:
+                    transcribe_params["language"] = detected
 
             # Add initial prompt if specified
             if self.initial_prompt:
@@ -199,9 +232,12 @@ class SpeechProcessor:
                 },
             }
 
-            # Only specify language if set (None enables auto-detection)
             if self.language is not None:
                 transcribe_params["language"] = self.language
+            elif self.allowed_languages:
+                detected = self._detect_among(audio_data, self.allowed_languages)
+                if detected:
+                    transcribe_params["language"] = detected
 
             # Add initial prompt if specified
             if self.initial_prompt:

@@ -126,6 +126,7 @@ class WhisperToMe:
             language=self.config.general.language
             if self.config.general.language != "auto"
             else None,
+            allowed_languages=self.config.general.allowed_languages,
             vad_filter=self.config.advanced.vad_filter,
             initial_prompt=self.config.advanced.initial_prompt,
             min_silence_duration_ms=self.config.advanced.min_silence_duration_ms,
@@ -268,6 +269,7 @@ class WhisperToMe:
                 language=new_config.general.language
                 if new_config.general.language != "auto"
                 else None,
+                allowed_languages=new_config.general.allowed_languages,
                 vad_filter=new_config.advanced.vad_filter,
                 initial_prompt=new_config.advanced.initial_prompt,
                 min_silence_duration_ms=new_config.advanced.min_silence_duration_ms,

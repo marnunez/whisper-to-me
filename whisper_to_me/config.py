@@ -69,6 +69,7 @@ class GeneralConfig:
     model: str = ModelSizes.LARGE_V3
     device: str = DeviceTypes.CUDA
     language: str = Languages.AUTO
+    allowed_languages: list[str] | None = None  # e.g. ["en", "es"] to restrict detection
     debug: bool = False
     last_profile: str = DEFAULT_PROFILE
     trailing_space: bool = False
