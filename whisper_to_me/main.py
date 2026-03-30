@@ -32,6 +32,7 @@ from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import LogLevel, get_logger, setup_logger
 from whisper_to_me.single_instance import SingleInstance
 from whisper_to_me.speech_processor import SpeechProcessor
+from whisper_to_me.text_processor import TextProcessor
 from whisper_to_me.tray_icon import TrayIcon
 
 
@@ -131,6 +132,18 @@ class WhisperToMe:
             speech_pad_ms=self.config.advanced.speech_pad_ms,
         )
         self.keystroke_handler = KeystrokeHandler(backend=self.display_backend)
+
+        # Initialize text processor
+        self.text_processor = TextProcessor(
+            enabled=self.config.processing.enabled,
+            backend=self.config.processing.backend,
+            model=self.config.processing.model,
+            api_url=self.config.processing.api_url,
+            api_key=self.config.processing.api_key,
+            temperature=self.config.processing.temperature,
+            system_prompt=self.config.processing.system_prompt,
+            timeout=self.config.processing.timeout,
+        )
 
         # Initialize tray icon if enabled
         if self.config.ui.use_tray:
@@ -250,6 +263,18 @@ class WhisperToMe:
                 min_silence_duration_ms=new_config.advanced.min_silence_duration_ms,
                 speech_pad_ms=new_config.advanced.speech_pad_ms,
             )
+
+        # Reinitialize text processor with new profile settings
+        self.text_processor = TextProcessor(
+            enabled=new_config.processing.enabled,
+            backend=new_config.processing.backend,
+            model=new_config.processing.model,
+            api_url=new_config.processing.api_url,
+            api_key=new_config.processing.api_key,
+            temperature=new_config.processing.temperature,
+            system_prompt=new_config.processing.system_prompt,
+            timeout=new_config.processing.timeout,
+        )
 
         # Save the profile switch
         self.config_manager.save_config()
@@ -414,6 +439,13 @@ class WhisperToMe:
                 self.logger.transcription_completed(text, language, confidence)
                 if self.debug:
                     self.logger.debug(f"Duration: {duration:.2f}s", "speech")
+
+                # Optional LLM post-processing
+                if self.text_processor.enabled:
+                    self.logger.debug(f"Raw text: '{text}'", "processing")
+                    text = self.text_processor.process(text)
+                    self.logger.debug(f"Processed text: '{text}'", "processing")
+
                 self.keystroke_handler.type_text_fast(
                     text, self.config.general.trailing_space
                 )
@@ -602,6 +634,27 @@ Examples:
         default=None,
         help="Display backend for input handling (default: auto-detect)",
     )
+    parser.add_argument(
+        "--processing",
+        action="store_true",
+        default=None,
+        help="Enable LLM post-processing of transcribed text",
+    )
+    parser.add_argument(
+        "--no-processing",
+        action="store_true",
+        help="Disable LLM post-processing",
+    )
+    parser.add_argument(
+        "--processing-backend",
+        choices=["ollama", "openai"],
+        help="LLM backend for text processing (ollama or openai)",
+    )
+    parser.add_argument(
+        "--processing-model",
+        type=str,
+        help="Model name for LLM text processing",
+    )
 
     args = parser.parse_args()
 
@@ -738,6 +791,19 @@ Examples:
         config.advanced.min_silence_duration_ms = args.min_silence_duration_ms
     if args.speech_pad_ms is not None:
         config.advanced.speech_pad_ms = args.speech_pad_ms
+
+    # Override processing settings
+    if args.processing and args.no_processing:
+        logger.error("Cannot specify both --processing and --no-processing", "config")
+        return
+    elif args.processing:
+        config.processing.enabled = True
+    elif args.no_processing:
+        config.processing.enabled = False
+    if args.processing_backend is not None:
+        config.processing.backend = args.processing_backend
+    if args.processing_model is not None:
+        config.processing.model = args.processing_model
 
     # Handle profile creation
     if args.create_profile:

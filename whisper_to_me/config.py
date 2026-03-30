@@ -18,6 +18,7 @@ from whisper_to_me.config_constants import (
     ADVANCED_SECTION,
     DEFAULT_PROFILE,
     GENERAL_SECTION,
+    PROCESSING_SECTION,
     PROFILES_SECTION,
     RECORDING_SECTION,
     REQUIRED_SECTIONS,
@@ -25,6 +26,7 @@ from whisper_to_me.config_constants import (
     DeviceTypes,
     Languages,
     ModelSizes,
+    ProcessingBackends,
     RecordingModes,
 )
 from whisper_to_me.config_differ import ConfigSectionDiffer
@@ -73,6 +75,20 @@ class GeneralConfig:
 
 
 @dataclass
+class ProcessingConfig:
+    """LLM post-processing configuration."""
+
+    enabled: bool = False
+    backend: str = ProcessingBackends.OLLAMA
+    model: str = "qwen3:4b"
+    api_url: str = ""
+    api_key: str = ""
+    temperature: float = 0.3
+    system_prompt: str = ""
+    timeout: int = 10
+
+
+@dataclass
 class AppConfig:
     """Complete application configuration."""
 
@@ -80,6 +96,7 @@ class AppConfig:
     recording: RecordingConfig
     ui: UIConfig
     advanced: AdvancedConfig
+    processing: ProcessingConfig
     profiles: dict[str, dict[str, Any]]
 
     def __post_init__(self):
@@ -184,6 +201,16 @@ class ConfigManager:
                 "min_silence_duration_ms": 2000,
                 "speech_pad_ms": 400,
             },
+            PROCESSING_SECTION: {
+                "enabled": False,
+                "backend": ProcessingBackends.OLLAMA,
+                "model": "qwen3:4b",
+                "api_url": "",
+                "api_key": "",
+                "temperature": 0.3,
+                "system_prompt": "",
+                "timeout": 10,
+            },
             PROFILES_SECTION: {},
         }
 
@@ -284,6 +311,11 @@ class ConfigManager:
                     config_dict[ADVANCED_SECTION], AdvancedConfig
                 )
             ),
+            processing=ProcessingConfig(
+                **self._filter_config_fields(
+                    config_dict[PROCESSING_SECTION], ProcessingConfig
+                )
+            ),
             profiles=config_dict[PROFILES_SECTION],
         )
 
@@ -301,6 +333,7 @@ class ConfigManager:
             RECORDING_SECTION: asdict(self._config.recording),
             UI_SECTION: asdict(self._config.ui),
             ADVANCED_SECTION: asdict(self._config.advanced),
+            PROCESSING_SECTION: asdict(self._config.processing),
             PROFILES_SECTION: self._config.profiles,
         }
 
@@ -343,6 +376,7 @@ class ConfigManager:
             recording=RecordingConfig(**asdict(self._config.recording)),
             ui=UIConfig(**asdict(self._config.ui)),
             advanced=AdvancedConfig(**asdict(self._config.advanced)),
+            processing=ProcessingConfig(**asdict(self._config.processing)),
             profiles=self._config.profiles,
         )
 

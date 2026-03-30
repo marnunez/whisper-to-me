@@ -37,7 +37,12 @@ dependencies = [
 wayland = [
     "evdev>=1.7.0",
 ]
-
+llm = [
+    "ollama>=0.4.0",
+    "openai>=1.0.0",
+]
+ollama = ["ollama>=0.4.0"]
+openai = ["openai>=1.0.0"]
 [project.scripts]
 whisper-to-me = "whisper_to_me.main:main"
 

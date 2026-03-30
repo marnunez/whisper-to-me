@@ -10,6 +10,7 @@ from whisper_to_me import (
     AppConfig,
     ConfigManager,
     GeneralConfig,
+    ProcessingConfig,
     RecordingConfig,
     UIConfig,
 )
@@ -110,6 +111,7 @@ class TestConfigManager:
                 min_silence_duration_ms=2000,
                 speech_pad_ms=400,
             ),
+            processing=ProcessingConfig(),
             profiles={},
         )
         self.config_manager.create_profile("spanish", spanish_config)
@@ -137,6 +139,7 @@ class TestConfigManager:
                 min_silence_duration_ms=2000,
                 speech_pad_ms=400,
             ),
+            processing=ProcessingConfig(),
             profiles={},
         )
         self.config_manager.create_profile("work", work_config)
@@ -202,6 +205,7 @@ class TestConfigManager:
             recording=config.recording,
             ui=config.ui,
             advanced=config.advanced,
+            processing=config.processing,
             profiles={},
         )
         self.config_manager.create_profile("minimal", minimal_config)
@@ -292,6 +296,7 @@ class TestConfigManager:
                 min_silence_duration_ms=2000,
                 speech_pad_ms=400,
             ),
+            processing=ProcessingConfig(),
             profiles={},
         )
 
@@ -390,6 +395,7 @@ class TestConfigManager:
                 min_silence_duration_ms=2000,
                 speech_pad_ms=400,
             ),
+            processing=ProcessingConfig(),
             profiles={},
         )
 
@@ -591,6 +597,7 @@ class TestConfigManager:
                 min_silence_duration_ms=500,  # Fast VAD
                 speech_pad_ms=100,  # Less padding
             ),
+            processing=ProcessingConfig(),
             profiles={},
         )
 
