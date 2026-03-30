@@ -147,20 +147,27 @@ class WhisperToMe:
 
         # Initialize tray icon if enabled
         if self.config.ui.use_tray:
-            from whisper_to_me.tray_icon import TrayIcon
+            try:
+                from whisper_to_me.tray_icon import TrayIcon
 
-            self.tray_icon = TrayIcon(
-                on_quit=self.shutdown,
-                on_profile_change=self.switch_profile,
-                get_profiles=self.config_manager.get_profile_names,
-                get_current_profile=self.config_manager.get_current_profile,
-                on_device_change=self.switch_audio_device,
-                get_devices=lambda: self._convert_devices_for_tray(),
-                get_current_device=lambda: self._convert_device_for_tray(
-                    self.device_manager.get_current_device()
-                ),
-            )
-            self.tray_icon.start()
+                self.tray_icon = TrayIcon(
+                    on_quit=self.shutdown,
+                    on_profile_change=self.switch_profile,
+                    get_profiles=self.config_manager.get_profile_names,
+                    get_current_profile=self.config_manager.get_current_profile,
+                    on_device_change=self.switch_audio_device,
+                    get_devices=lambda: self._convert_devices_for_tray(),
+                    get_current_device=lambda: self._convert_device_for_tray(
+                        self.device_manager.get_current_device()
+                    ),
+                )
+                self.tray_icon.start()
+            except (ImportError, ValueError) as e:
+                self.logger.warning(
+                    f"System tray unavailable ({e}), running without tray icon",
+                    "ui",
+                )
+                self.tray_icon = None
 
         # Format key display for user
         trigger_display = self.config.recording.trigger_key
