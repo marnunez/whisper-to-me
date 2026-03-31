@@ -102,33 +102,40 @@ class TextProcessor:
 
     def _get_context_prompt(self) -> str:
         """Get context-specific prompt addition based on the focused window."""
-        if not self.contexts:
-            return ""
+        from whisper_to_me.display_backend import get_focused_window
 
-        from whisper_to_me.display_backend import get_focused_app
+        app, title = get_focused_window(self.display_backend)
 
-        app = get_focused_app(self.display_backend)
-        if not app:
-            return ""
+        parts = []
 
-        for name, ctx in self.contexts.items():
-            match_list = ctx.get("match", [])
-            for pattern in match_list:
-                if pattern.lower() in app:
-                    parts = []
-                    hint = ctx.get("hint", "")
-                    terms = ctx.get("terms", [])
-                    if hint:
-                        parts.append(f"Context: {hint}")
-                    if terms:
-                        parts.append(
-                            f"Domain terms for this context: {', '.join(terms)}"
-                        )
-                    if parts:
+        # Window title as context (always available, very useful)
+        if title:
+            parts.append(f"Active window title: {title}")
+
+        # Match against user-defined contexts
+        if app and self.contexts:
+            for name, ctx in self.contexts.items():
+                match_list = ctx.get("match", [])
+                for pattern in match_list:
+                    if pattern.lower() in app:
+                        hint = ctx.get("hint", "")
+                        terms = ctx.get("terms", [])
+                        if hint:
+                            parts.append(f"Context: {hint}")
+                        if terms:
+                            parts.append(
+                                f"Domain terms for this context: {', '.join(terms)}"
+                            )
                         self.logger.debug(
                             f"Window context: {name} (app={app})", "processing"
                         )
-                        return "\n".join(parts)
+                        break
+
+        if parts:
+            self.logger.debug(
+                f"Window title: {title or '(none)'}", "processing"
+            )
+            return "\n".join(parts)
         return ""
 
     def _build_system_prompt(self) -> str:

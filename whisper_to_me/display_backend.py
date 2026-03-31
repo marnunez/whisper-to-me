@@ -75,12 +75,14 @@ def resolve_backend(override: str | None = None) -> DisplayBackend:
     return backend
 
 
-def get_focused_app(backend: DisplayBackend | None = None) -> str | None:
+def get_focused_window(
+    backend: DisplayBackend | None = None,
+) -> tuple[str | None, str | None]:
     """
-    Get the app_id or WM_CLASS of the currently focused window.
+    Get the app_id and window title of the currently focused window.
 
-    Returns a lowercase string identifying the focused application,
-    or None if detection fails.
+    Returns:
+        (app_id, title) — both lowercase. Either or both may be None.
 
     Args:
         backend: Display backend to use. Auto-detected if None.
@@ -97,9 +99,9 @@ def get_focused_app(backend: DisplayBackend | None = None) -> str | None:
                 timeout=2,
             )
             if result.returncode != 0:
-                return None
+                return None, None
             tree = json.loads(result.stdout)
-            return _find_focused_app(tree)
+            return _find_focused_window(tree)
         else:
             result = subprocess.run(
                 ["xdotool", "getactivewindow", "getwindowclassname"],
@@ -108,23 +110,45 @@ def get_focused_app(backend: DisplayBackend | None = None) -> str | None:
                 timeout=2,
             )
             if result.returncode != 0:
-                return None
-            return result.stdout.strip().lower() or None
+                return None, None
+            app = result.stdout.strip().lower() or None
+            # X11: get title separately
+            title = None
+            try:
+                title_result = subprocess.run(
+                    ["xdotool", "getactivewindow", "getwindowname"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2,
+                )
+                if title_result.returncode == 0:
+                    title = title_result.stdout.strip() or None
+            except Exception:
+                pass
+            return app, title
     except Exception:
-        return None
+        return None, None
 
 
-def _find_focused_app(node: dict) -> str | None:
-    """Recursively find the focused window's app_id in a sway tree."""
+def get_focused_app(backend: DisplayBackend | None = None) -> str | None:
+    """Get the app_id of the currently focused window. Convenience wrapper."""
+    app, _title = get_focused_window(backend)
+    return app
+
+
+def _find_focused_window(node: dict) -> tuple[str | None, str | None]:
+    """Recursively find the focused window's app_id and title in a sway tree."""
     if node.get("focused") and (node.get("app_id") or node.get("window_properties")):
-        # Prefer app_id (native Wayland), fall back to X11 class
         app_id = node.get("app_id")
         if app_id:
-            return app_id.lower()
-        props = node.get("window_properties", {})
-        return (props.get("class") or props.get("instance") or "").lower() or None
+            app = app_id.lower()
+        else:
+            props = node.get("window_properties", {})
+            app = (props.get("class") or props.get("instance") or "").lower() or None
+        title = node.get("name")
+        return app, title
     for child in node.get("nodes", []) + node.get("floating_nodes", []):
-        result = _find_focused_app(child)
-        if result:
+        result = _find_focused_window(child)
+        if result[0] is not None or result[1] is not None:
             return result
-    return None
+    return None, None
