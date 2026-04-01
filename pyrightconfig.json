@@ -1,0 +1,7 @@
+{
+  "venvPath": "/home/marcos/projects/whisper-to-me",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "pythonPlatform": "Linux",
+  "typeCheckingMode": "standard"
+}

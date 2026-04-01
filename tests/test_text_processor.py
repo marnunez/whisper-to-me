@@ -3,7 +3,13 @@
 import sys
 from unittest.mock import MagicMock, Mock, patch
 
-from whisper_to_me.text_processor import DEFAULT_SYSTEM_PROMPT, TextProcessor
+import pytest
+
+from whisper_to_me.text_processor import (
+    DEFAULT_SYSTEM_PROMPT,
+    TextProcessingError,
+    TextProcessor,
+)
 
 
 class TestTextProcessorPassthrough:
@@ -155,26 +161,24 @@ class TestTextProcessorOllama:
 
         mock_module.Client.assert_called_once_with(host="http://localhost:11434")
 
-    def test_ollama_empty_response_fallback(self):
-        """Test fallback when Ollama returns empty response."""
+    def test_ollama_empty_response_raises(self):
+        """Empty LLM response should raise, never fall back to raw text."""
         mock_module, _ = _make_ollama_mock("")
         processor = TextProcessor(enabled=True, backend="ollama")
 
-        with patch.dict(sys.modules, {"ollama": mock_module}):
-            result = processor.process("original text")
+        with patch.dict(sys.modules, {"ollama": mock_module}), \
+             pytest.raises(TextProcessingError, match="empty result"):
+            processor.process("original text")
 
-        assert result == "original text"
-
-    def test_ollama_exception_fallback(self):
-        """Test fallback when Ollama raises an exception."""
+    def test_ollama_exception_raises(self):
+        """Ollama errors should raise, never fall back to raw text."""
         mock_module, mock_client = _make_ollama_mock()
         mock_client.chat.side_effect = ConnectionError("Ollama not running")
         processor = TextProcessor(enabled=True, backend="ollama")
 
-        with patch.dict(sys.modules, {"ollama": mock_module}):
-            result = processor.process("original text")
-
-        assert result == "original text"
+        with patch.dict(sys.modules, {"ollama": mock_module}), \
+             pytest.raises(TextProcessingError, match="Ollama not running"):
+            processor.process("original text")
 
     def test_ollama_temperature_passed(self):
         """Test that temperature is passed to Ollama."""
@@ -235,16 +239,15 @@ class TestTextProcessorOpenAI:
         call_kwargs = mock_module.OpenAI.call_args.kwargs
         assert call_kwargs["api_key"] == "not-needed"
 
-    def test_openai_exception_fallback(self):
-        """Test fallback when OpenAI raises an exception."""
+    def test_openai_exception_raises(self):
+        """OpenAI errors should raise, never fall back to raw text."""
         mock_module, mock_client = _make_openai_mock()
         mock_client.chat.completions.create.side_effect = Exception("API error")
         processor = TextProcessor(enabled=True, backend="openai", api_key="sk-test")
 
-        with patch.dict(sys.modules, {"openai": mock_module}):
-            result = processor.process("original text")
-
-        assert result == "original text"
+        with patch.dict(sys.modules, {"openai": mock_module}), \
+             pytest.raises(TextProcessingError, match="API error"):
+            processor.process("original text")
 
     def test_openai_temperature_passed(self):
         """Test that temperature is passed to OpenAI."""
@@ -263,11 +266,12 @@ class TestTextProcessorOpenAI:
 class TestTextProcessorUnknownBackend:
     """Test unknown backend handling."""
 
-    def test_unknown_backend_fallback(self):
-        """Unknown backend should fall back to raw text."""
+    def test_unknown_backend_raises(self):
+        """Unknown backend should raise, never fall back to raw text."""
         processor = TextProcessor(enabled=True, backend="unknown_backend")
-        result = processor.process("original text")
-        assert result == "original text"
+
+        with pytest.raises(TextProcessingError, match="Unknown processing backend"):
+            processor.process("original text")
 
 
 class TestDefaultSystemPrompt:

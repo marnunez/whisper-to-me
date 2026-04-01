@@ -22,6 +22,7 @@ Examples:
 """
 
 import os
+import subprocess
 
 from whisper_to_me.audio_device_manager import AudioDeviceManager
 from whisper_to_me.audio_recorder import AudioRecorder
@@ -32,7 +33,7 @@ from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import LogLevel, get_logger, setup_logger
 from whisper_to_me.single_instance import SingleInstance
 from whisper_to_me.speech_processor import SpeechProcessor
-from whisper_to_me.text_processor import TextProcessor
+from whisper_to_me.text_processor import TextProcessor, TextProcessingError
 
 # TrayIcon imported lazily — pystray needs GTK typelibs at import time
 
@@ -460,7 +461,29 @@ class WhisperToMe:
                 # Optional LLM post-processing
                 if self.text_processor.enabled:
                     self.logger.debug(f"Raw text: '{text}'", "processing")
-                    text = self.text_processor.process(text)
+                    try:
+                        text = self.text_processor.process(text)
+                    except TextProcessingError as e:
+                        msg = str(e)
+                        self.logger.error(
+                            "Post-processing failed, discarding transcription",
+                            "processing",
+                        )
+                        try:
+                            subprocess.Popen(
+                                [
+                                    "notify-send",
+                                    "--urgency=critical",
+                                    "--app-name=Whisper-to-Me",
+                                    "Whisper-to-Me: Processing Failed",
+                                    msg,
+                                ],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                            )
+                        except FileNotFoundError:
+                            pass
+                        return
                     self.logger.debug(f"Processed text: '{text}'", "processing")
 
                 self.keystroke_handler.type_text_fast(
