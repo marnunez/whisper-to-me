@@ -41,6 +41,9 @@ Also in Spanish: eh, este, o sea, bueno (filler), pues (filler), digamos, a ver.
 "new paragraph" → blank line. "heading" + text → "# " prefix.
 - Punctuation: add proper punctuation, capitalize sentences, fix speech recognition errors.
 - Preserve meaning: never change WHAT was said. Only clean HOW it's presented.
+- Preserve the original language: NEVER translate. If the input is in Spanish, output Spanish. \
+If it's in English, output English. If the input mixes languages (e.g., a Spanish sentence \
+with an English word), keep the dominant language and leave foreign words as-is.
 - Return ONLY the cleaned text. No commentary. No preamble. No refusals.
 
 Examples:
