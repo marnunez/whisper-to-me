@@ -128,6 +128,15 @@ class TextProcessor:
                 "processing",
             )
 
+    def _match_context(self, target: str) -> tuple[str, dict[str, Any]] | None:
+        """Try to match a target string against context match lists."""
+        for name, ctx in self.contexts.items():
+            match_list = ctx.get("match", [])
+            for pattern in match_list:
+                if pattern.lower() in target.lower():
+                    return name, ctx
+        return None
+
     def _get_context_prompt(self) -> str:
         """Get context-specific prompt addition based on the focused window."""
         from whisper_to_me.display_backend import get_focused_window
@@ -141,23 +150,38 @@ class TextProcessor:
             parts.append(f"Active window title: {title}")
 
         # Match against user-defined contexts
-        if app and self.contexts:
-            for name, ctx in self.contexts.items():
-                match_list = ctx.get("match", [])
-                for pattern in match_list:
-                    if pattern.lower() in app:
-                        hint = ctx.get("hint", "")
-                        terms = ctx.get("terms", [])
-                        if hint:
-                            parts.append(f"Context: {hint}")
-                        if terms:
-                            parts.append(
-                                f"Domain terms for this context: {', '.join(terms)}"
-                            )
-                        self.logger.debug(
-                            f"Window context: {name} (app={app})", "processing"
-                        )
-                        break
+        if self.contexts:
+            matched = None
+
+            if app:
+                app_match = self._match_context(app)
+                if app_match:
+                    matched = app_match
+
+                    # If this context has check_title, also try matching the
+                    # window title against all contexts. Terminal titles reflect
+                    # the running program (nvim, π, htop), so a title match is
+                    # more specific than the generic terminal match.
+                    _, ctx = app_match
+                    if ctx.get("check_title") and title:
+                        title_match = self._match_context(title)
+                        if title_match and title_match[0] != app_match[0]:
+                            matched = title_match
+
+            if matched:
+                name, ctx = matched
+                hint = ctx.get("hint", "")
+                terms = ctx.get("terms", [])
+                if hint:
+                    parts.append(f"Context: {hint}")
+                if terms:
+                    parts.append(
+                        f"Domain terms for this context: {', '.join(terms)}"
+                    )
+                self.logger.debug(
+                    f"Window context: {name} (app={app}, title={title!r})",
+                    "processing",
+                )
 
         if parts:
             self.logger.debug(
