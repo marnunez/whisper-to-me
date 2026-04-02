@@ -128,10 +128,12 @@ class TextProcessor:
                 "processing",
             )
 
-    def _match_context(self, target: str) -> tuple[str, dict[str, Any]] | None:
-        """Try to match a target string against context match lists."""
+    def _match_context(
+        self, target: str, field: str = "match",
+    ) -> tuple[str, dict[str, Any]] | None:
+        """Try to match a target string against context match/match_title lists."""
         for name, ctx in self.contexts.items():
-            match_list = ctx.get("match", [])
+            match_list = ctx.get(field, [])
             for pattern in match_list:
                 if pattern.lower() in target.lower():
                     return name, ctx
@@ -159,12 +161,12 @@ class TextProcessor:
                     matched = app_match
 
                     # If this context has check_title, also try matching the
-                    # window title against all contexts. Terminal titles reflect
-                    # the running program (nvim, π, htop), so a title match is
-                    # more specific than the generic terminal match.
+                    # window title via match_title lists. Only contexts that
+                    # define match_title participate — this prevents app_id
+                    # patterns (like "whatsapp") from matching inside titles.
                     _, ctx = app_match
                     if ctx.get("check_title") and title:
-                        title_match = self._match_context(title)
+                        title_match = self._match_context(title, "match_title")
                         if title_match and title_match[0] != app_match[0]:
                             matched = title_match
 
