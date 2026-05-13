@@ -35,11 +35,14 @@ class ConfigValidator:
     # Valid recording modes
     VALID_RECORDING_MODES = {"push-to-talk", "tap-mode"}
 
+    # Valid transcription backends
+    VALID_TRANSCRIPTION_BACKENDS = {"local", "whisper-asr", "remote", "openai"}
+
     def __init__(self):
         """Initialize the configuration validator."""
         pass
 
-    def validate_key_combination(self, key_str: str) -> set[keyboard.Key]:
+    def validate_key_combination(self, key_str: str) -> set[Any]:
         """
         Validate and parse a key combination string.
 
@@ -62,7 +65,7 @@ class ConfigValidator:
                 f"Original error: {e}"
             ) from e
 
-    def validate_single_key(self, key_str: str) -> keyboard.Key:
+    def validate_single_key(self, key_str: str) -> Any:
         """
         Validate and parse a single key string.
 
@@ -228,6 +231,8 @@ class ConfigValidator:
             return self._validate_ui_config(section_data)
         elif section_name == "advanced":
             return self._validate_advanced_config(section_data)
+        elif section_name == "transcription":
+            return self._validate_transcription_config(section_data)
         else:
             raise ValidationError(f"Unknown configuration section: {section_name}")
 
@@ -269,6 +274,41 @@ class ConfigValidator:
         if not isinstance(config.vad_filter, bool):
             raise ValidationError("vad_filter must be a boolean")
 
+        if config.task not in {"transcribe", "translate"}:
+            raise ValidationError("task must be either 'transcribe' or 'translate'")
+
+        if not isinstance(config.beam_size, int) or config.beam_size <= 0:
+            raise ValidationError("beam_size must be a positive integer")
+
+        if not isinstance(config.best_of, int) or config.best_of <= 0:
+            raise ValidationError("best_of must be a positive integer")
+
+        if not isinstance(config.temperature, int | float) or config.temperature < 0:
+            raise ValidationError("temperature must be a non-negative number")
+
+        if not isinstance(config.condition_on_previous_text, bool):
+            raise ValidationError("condition_on_previous_text must be a boolean")
+
+        for field_name in (
+            "no_speech_threshold",
+            "log_prob_threshold",
+            "compression_ratio_threshold",
+        ):
+            value = getattr(config, field_name)
+            if not isinstance(value, int | float):
+                raise ValidationError(f"{field_name} must be a number")
+
+        if config.hallucination_silence_threshold is not None and (
+            not isinstance(config.hallucination_silence_threshold, int | float)
+            or config.hallucination_silence_threshold < 0
+        ):
+            raise ValidationError(
+                "hallucination_silence_threshold must be null or a non-negative number"
+            )
+
+        if not isinstance(config.hotwords, str):
+            raise ValidationError("hotwords must be a string")
+
         if (
             not isinstance(config.min_silence_duration_ms, int)
             or config.min_silence_duration_ms <= 0
@@ -277,6 +317,37 @@ class ConfigValidator:
 
         if not isinstance(config.speech_pad_ms, int) or config.speech_pad_ms < 0:
             raise ValidationError("speech_pad_ms must be a non-negative integer")
+
+        if (
+            not isinstance(config.fast_typing_delay_ms, int)
+            or config.fast_typing_delay_ms < 0
+        ):
+            raise ValidationError("fast_typing_delay_ms must be a non-negative integer")
+
+        return config
+
+    def _validate_transcription_config(self, config) -> Any:
+        """Validate transcription backend configuration section."""
+        if config.backend not in self.VALID_TRANSCRIPTION_BACKENDS:
+            raise ValidationError(
+                f"Invalid transcription backend '{config.backend}'. Valid options: "
+                f"{', '.join(sorted(self.VALID_TRANSCRIPTION_BACKENDS))}"
+            )
+
+        if not isinstance(config.url, str):
+            raise ValidationError("transcription.url must be a string")
+
+        if not isinstance(config.model, str):
+            raise ValidationError("transcription.model must be a string")
+
+        if not isinstance(config.api_key, str):
+            raise ValidationError("transcription.api_key must be a string")
+
+        if not isinstance(config.timeout, int | float) or config.timeout <= 0:
+            raise ValidationError("transcription.timeout must be a positive number")
+
+        if not isinstance(config.fallback_to_local, bool):
+            raise ValidationError("transcription.fallback_to_local must be a boolean")
 
         return config
 
@@ -316,6 +387,10 @@ class ConfigValidator:
                 "recording",
                 "discard_key",
             ): "Single key only. Examples: '<esc>', '<delete>', 'x'",
+            (
+                "transcription",
+                "backend",
+            ): f"Valid backends: {', '.join(sorted(self.VALID_TRANSCRIPTION_BACKENDS))}",
         }
 
         return help_text.get(

@@ -23,6 +23,7 @@ class TestKeystrokeHandler:
             handler = KeystrokeHandler(backend=DisplayBackend.X11)
 
             assert handler.typing_speed == 0.01
+            assert handler.fast_typing_delay_ms == 0
             assert handler.keyboard_controller == mock_instance
             mock_controller.assert_called_once()
 
@@ -122,6 +123,21 @@ class TestKeystrokeHandler:
 
         # Should type the whole text at once (stripped)
         mock_keyboard.type.assert_called_once_with("Hello World")
+
+    @patch("time.sleep")
+    @patch("pynput.keyboard.Controller")
+    def test_type_text_fast_with_delay(self, mock_controller, mock_sleep):
+        """Test type_text_fast can add a small delay for sensitive clients."""
+        mock_keyboard = Mock()
+        mock_controller.return_value = mock_keyboard
+
+        handler = KeystrokeHandler(
+            backend=DisplayBackend.X11, fast_typing_delay_ms=5
+        )
+        handler.type_text_fast("Hi")
+
+        mock_keyboard.type.assert_has_calls([call("H"), call("i")])
+        mock_sleep.assert_has_calls([call(0.005), call(0.005)])
 
     @patch("pynput.keyboard.Controller")
     def test_type_text_fast_empty(self, mock_controller):
@@ -338,6 +354,18 @@ class TestWtypeKeystrokeBackend:
         handler.type_text_fast("Hello World")
 
         mock_run.assert_called_once_with(["wtype", "--", "Hello World"], check=True)
+
+    @patch("subprocess.run")
+    def test_type_text_fast_with_configured_delay(self, mock_run):
+        """Test fast text typing with configured delay via wtype."""
+        handler = KeystrokeHandler(
+            backend=DisplayBackend.WAYLAND, fast_typing_delay_ms=5
+        )
+        handler.type_text_fast("Hello World")
+
+        mock_run.assert_called_once_with(
+            ["wtype", "-d", "5", "--", "Hello World"], check=True
+        )
 
     @patch("subprocess.run")
     def test_type_text_with_delay(self, mock_run):

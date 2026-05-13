@@ -44,12 +44,13 @@ class KeystrokeBackend(Protocol):
 class PynputKeystrokeBackend:
     """Keystroke backend using pynput (X11 / XWayland)."""
 
-    def __init__(self, typing_speed: float = 0.01):
+    def __init__(self, typing_speed: float = 0.01, fast_typing_delay_ms: int = 0):
         from pynput import keyboard
 
         self._keyboard = keyboard
         self._controller = keyboard.Controller()
         self.typing_speed = typing_speed
+        self.fast_typing_delay_ms = fast_typing_delay_ms
 
     def type_text(self, text: str) -> None:
         for char in text:
@@ -57,7 +58,14 @@ class PynputKeystrokeBackend:
             time.sleep(self.typing_speed)
 
     def type_text_fast(self, text: str) -> None:
-        self._controller.type(text)
+        if self.fast_typing_delay_ms <= 0:
+            self._controller.type(text)
+            return
+
+        delay = self.fast_typing_delay_ms / 1000
+        for char in text:
+            self._controller.type(char)
+            time.sleep(delay)
 
     def press_key(self, key: str) -> None:
         """Press a named key.
@@ -107,8 +115,9 @@ _WTYPE_KEY_MAP: dict[str, str] = {
 class WtypeKeystrokeBackend:
     """Keystroke backend using ``wtype`` (Wayland)."""
 
-    def __init__(self, typing_speed: float = 0.01):
+    def __init__(self, typing_speed: float = 0.01, fast_typing_delay_ms: int = 0):
         self.typing_speed = typing_speed
+        self.fast_typing_delay_ms = fast_typing_delay_ms
 
     @staticmethod
     def _run_wtype(*args: str) -> None:
@@ -134,7 +143,10 @@ class WtypeKeystrokeBackend:
         self._run_wtype_lines(text, ["-d", str(delay_ms)])
 
     def type_text_fast(self, text: str) -> None:
-        self._run_wtype_lines(text)
+        delay_args = None
+        if self.fast_typing_delay_ms > 0:
+            delay_args = ["-d", str(self.fast_typing_delay_ms)]
+        self._run_wtype_lines(text, delay_args)
 
     def press_key(self, key: str) -> None:
         xkb_name = _WTYPE_KEY_MAP.get(key.lower() if isinstance(key, str) else key, key)
@@ -161,6 +173,7 @@ class KeystrokeHandler:
         self,
         typing_speed: float = 0.01,
         backend: DisplayBackend | None = None,
+        fast_typing_delay_ms: int = 0,
     ):
         """
         Initialise the keystroke handler.
@@ -169,8 +182,11 @@ class KeystrokeHandler:
             typing_speed: Delay between keystrokes in seconds (0.01 = fast).
             backend: Force a specific display backend.  *None* means
                 auto-detect.
+            fast_typing_delay_ms: Optional delay for fast typing.  Useful for
+                clients that drop characters when text is injected too quickly.
         """
         self.typing_speed = typing_speed
+        self.fast_typing_delay_ms = fast_typing_delay_ms
 
         if backend is None:
             from whisper_to_me.display_backend import detect_backend
@@ -180,9 +196,11 @@ class KeystrokeHandler:
         from whisper_to_me.display_backend import DisplayBackend
 
         if backend == DisplayBackend.WAYLAND:
-            self._backend: KeystrokeBackend = WtypeKeystrokeBackend(typing_speed)
+            self._backend: KeystrokeBackend = WtypeKeystrokeBackend(
+                typing_speed, fast_typing_delay_ms
+            )
         else:
-            self._backend = PynputKeystrokeBackend(typing_speed)
+            self._backend = PynputKeystrokeBackend(typing_speed, fast_typing_delay_ms)
 
         self._display_backend = backend
 

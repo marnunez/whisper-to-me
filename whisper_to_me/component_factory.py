@@ -125,10 +125,27 @@ class ComponentFactory:
             language=self.config.general.language
             if self.config.general.language != "auto"
             else None,
+            allowed_languages=self.config.general.allowed_languages,
             vad_filter=self.config.advanced.vad_filter,
             initial_prompt=self.config.advanced.initial_prompt,
+            task=self.config.advanced.task,
+            beam_size=self.config.advanced.beam_size,
+            best_of=self.config.advanced.best_of,
+            temperature=self.config.advanced.temperature,
+            condition_on_previous_text=self.config.advanced.condition_on_previous_text,
+            no_speech_threshold=self.config.advanced.no_speech_threshold,
+            log_prob_threshold=self.config.advanced.log_prob_threshold,
+            compression_ratio_threshold=self.config.advanced.compression_ratio_threshold,
+            hallucination_silence_threshold=self.config.advanced.hallucination_silence_threshold,
+            hotwords=self.config.advanced.hotwords,
             min_silence_duration_ms=self.config.advanced.min_silence_duration_ms,
             speech_pad_ms=self.config.advanced.speech_pad_ms,
+            transcription_backend=self.config.transcription.backend,
+            remote_url=self.config.transcription.url,
+            remote_model=self.config.transcription.model,
+            remote_api_key=self.config.transcription.api_key,
+            remote_timeout=self.config.transcription.timeout,
+            remote_fallback_to_local=self.config.transcription.fallback_to_local,
         )
 
     def create_keystroke_handler(self) -> KeystrokeHandler:
@@ -138,7 +155,10 @@ class ComponentFactory:
         Returns:
             Configured KeystrokeHandler instance
         """
-        return KeystrokeHandler(backend=self.display_backend)
+        return KeystrokeHandler(
+            backend=self.display_backend,
+            fast_typing_delay_ms=self.config.advanced.fast_typing_delay_ms,
+        )
 
     def create_tray_icon(
         self,
@@ -203,10 +223,26 @@ class ComponentFactory:
             or old_config.general.model != new_config.general.model
             or old_config.general.device != new_config.general.device
             or old_config.advanced.initial_prompt != new_config.advanced.initial_prompt
+            or old_config.advanced.task != new_config.advanced.task
+            or old_config.advanced.beam_size != new_config.advanced.beam_size
+            or old_config.advanced.best_of != new_config.advanced.best_of
+            or old_config.advanced.temperature != new_config.advanced.temperature
+            or old_config.advanced.condition_on_previous_text
+            != new_config.advanced.condition_on_previous_text
+            or old_config.advanced.no_speech_threshold
+            != new_config.advanced.no_speech_threshold
+            or old_config.advanced.log_prob_threshold
+            != new_config.advanced.log_prob_threshold
+            or old_config.advanced.compression_ratio_threshold
+            != new_config.advanced.compression_ratio_threshold
+            or old_config.advanced.hallucination_silence_threshold
+            != new_config.advanced.hallucination_silence_threshold
+            or old_config.advanced.hotwords != new_config.advanced.hotwords
             or old_config.advanced.vad_filter != new_config.advanced.vad_filter
             or old_config.advanced.min_silence_duration_ms
             != new_config.advanced.min_silence_duration_ms
             or old_config.advanced.speech_pad_ms != new_config.advanced.speech_pad_ms
+            or old_config.transcription != new_config.transcription
         ):
             if old_config.general.language != new_config.general.language:
                 self.logger.info(

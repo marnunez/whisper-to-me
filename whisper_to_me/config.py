@@ -9,10 +9,9 @@ import os
 import tomllib
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import tomli_w
-from pynput import keyboard
 
 from whisper_to_me.config_constants import (
     ADVANCED_SECTION,
@@ -22,12 +21,14 @@ from whisper_to_me.config_constants import (
     PROFILES_SECTION,
     RECORDING_SECTION,
     REQUIRED_SECTIONS,
+    TRANSCRIPTION_SECTION,
     UI_SECTION,
     DeviceTypes,
     Languages,
     ModelSizes,
     ProcessingBackends,
     RecordingModes,
+    TranscriptionBackends,
 )
 from whisper_to_me.config_differ import ConfigSectionDiffer
 from whisper_to_me.config_validator import ConfigValidator, ValidationError
@@ -58,8 +59,19 @@ class AdvancedConfig:
     chunk_size: int = 512
     vad_filter: bool = True
     initial_prompt: str = ""
+    task: str = "transcribe"
+    beam_size: int = 5
+    best_of: int = 5
+    temperature: float = 0.0
+    condition_on_previous_text: bool = False
+    no_speech_threshold: float = 0.6
+    log_prob_threshold: float = -1.0
+    compression_ratio_threshold: float = 2.4
+    hallucination_silence_threshold: float | None = None
+    hotwords: str = ""
     min_silence_duration_ms: int = 2000
     speech_pad_ms: int = 400
+    fast_typing_delay_ms: int = 0
 
 
 @dataclass
@@ -95,6 +107,18 @@ class ProcessingConfig:
 
 
 @dataclass
+class TranscriptionConfig:
+    """Speech-to-text backend configuration."""
+
+    backend: str = TranscriptionBackends.LOCAL
+    url: str = ""
+    model: str = "whisper-1"
+    api_key: str = ""
+    timeout: int = 30
+    fallback_to_local: bool = False
+
+
+@dataclass
 class AppConfig:
     """Complete application configuration."""
 
@@ -103,7 +127,8 @@ class AppConfig:
     ui: UIConfig
     advanced: AdvancedConfig
     processing: ProcessingConfig
-    profiles: dict[str, dict[str, Any]]
+    transcription: TranscriptionConfig = field(default_factory=TranscriptionConfig)
+    profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self):
         """Ensure profiles dict exists."""
@@ -204,8 +229,18 @@ class ConfigManager:
                 "chunk_size": 512,
                 "vad_filter": True,
                 "initial_prompt": "",
+                "task": "transcribe",
+                "beam_size": 5,
+                "best_of": 5,
+                "temperature": 0.0,
+                "condition_on_previous_text": False,
+                "no_speech_threshold": 0.6,
+                "log_prob_threshold": -1.0,
+                "compression_ratio_threshold": 2.4,
+                "hotwords": "",
                 "min_silence_duration_ms": 2000,
                 "speech_pad_ms": 400,
+                "fast_typing_delay_ms": 0,
             },
             PROCESSING_SECTION: {
                 "enabled": False,
@@ -216,6 +251,14 @@ class ConfigManager:
                 "temperature": 0.3,
                 "system_prompt": "",
                 "timeout": 10,
+            },
+            TRANSCRIPTION_SECTION: {
+                "backend": TranscriptionBackends.LOCAL,
+                "url": "",
+                "model": "whisper-1",
+                "api_key": "",
+                "timeout": 30,
+                "fallback_to_local": False,
             },
             PROFILES_SECTION: {},
         }
@@ -255,7 +298,7 @@ class ConfigManager:
             else:
                 return obj
 
-        sanitized_config = remove_none_values(config_dict)
+        sanitized_config = cast(dict[str, Any], remove_none_values(config_dict))
 
         with open(self.config_file, "wb") as f:
             tomli_w.dump(sanitized_config, f)
@@ -322,11 +365,22 @@ class ConfigManager:
                     config_dict[PROCESSING_SECTION], ProcessingConfig
                 )
             ),
+            transcription=TranscriptionConfig(
+                **self._filter_config_fields(
+                    config_dict[TRANSCRIPTION_SECTION], TranscriptionConfig
+                )
+            ),
             profiles=config_dict[PROFILES_SECTION],
         )
 
         # Set current profile from config
         self.current_profile = self._config.general.last_profile
+        return self._config
+
+    def _ensure_config(self) -> AppConfig:
+        """Return the loaded config, loading it if necessary."""
+        if self._config is None:
+            return self.load_config()
         return self._config
 
     def save_config(self) -> None:
@@ -340,6 +394,7 @@ class ConfigManager:
             UI_SECTION: asdict(self._config.ui),
             ADVANCED_SECTION: asdict(self._config.advanced),
             PROCESSING_SECTION: asdict(self._config.processing),
+            TRANSCRIPTION_SECTION: asdict(self._config.transcription),
             PROFILES_SECTION: self._config.profiles,
         }
 
@@ -347,12 +402,11 @@ class ConfigManager:
 
     def get_profile_names(self) -> list[str]:
         """Get list of available profile names."""
-        if self._config is None:
-            self.load_config()
+        config = self._ensure_config()
 
         profiles = [DEFAULT_PROFILE]  # Always include default
-        if self._config and self._config.profiles:
-            profiles.extend(self._config.profiles.keys())
+        if config.profiles:
+            profiles.extend(config.profiles.keys())
 
         return sorted(profiles)
 
@@ -362,32 +416,32 @@ class ConfigManager:
 
     def apply_profile(self, profile_name: str) -> AppConfig:
         """Apply a profile and return the merged configuration."""
-        if self._config is None:
-            self.load_config()
+        config = self._ensure_config()
 
         if profile_name == DEFAULT_PROFILE:
             # Use base configuration
             self.current_profile = DEFAULT_PROFILE
-            return self._config
+            return config
 
-        if profile_name not in self._config.profiles:
+        if profile_name not in config.profiles:
             self.logger.warning(
                 f"Profile '{profile_name}' not found, using default", "profile"
             )
-            return self._config
+            return config
 
         # Create a copy of the base config
         profile_config = AppConfig(
-            general=GeneralConfig(**asdict(self._config.general)),
-            recording=RecordingConfig(**asdict(self._config.recording)),
-            ui=UIConfig(**asdict(self._config.ui)),
-            advanced=AdvancedConfig(**asdict(self._config.advanced)),
-            processing=ProcessingConfig(**asdict(self._config.processing)),
-            profiles=self._config.profiles,
+            general=GeneralConfig(**asdict(config.general)),
+            recording=RecordingConfig(**asdict(config.recording)),
+            ui=UIConfig(**asdict(config.ui)),
+            advanced=AdvancedConfig(**asdict(config.advanced)),
+            processing=ProcessingConfig(**asdict(config.processing)),
+            transcription=TranscriptionConfig(**asdict(config.transcription)),
+            profiles=config.profiles,
         )
 
         # Apply profile overrides using the differ
-        profile_data = self._config.profiles[profile_name]
+        profile_data = config.profiles[profile_name]
         self._config_differ.apply_profile_data(profile_config, profile_data)
 
         self.current_profile = profile_name
@@ -397,33 +451,31 @@ class ConfigManager:
 
     def create_profile(self, name: str, config: AppConfig) -> bool:
         """Create a new profile from the given configuration."""
-        if self._config is None:
-            self.load_config()
+        loaded_config = self._ensure_config()
 
         # Convert current config to profile format using the differ
         default = self._get_default_config()
         profile_data = self._config_differ.create_profile_data(config, default)
 
         # Save profile
-        self._config.profiles[name] = profile_data
+        loaded_config.profiles[name] = profile_data
         self.save_config()
         return True
 
     def delete_profile(self, name: str) -> bool:
         """Delete a profile."""
-        if self._config is None:
-            self.load_config()
+        config = self._ensure_config()
 
         if name == DEFAULT_PROFILE:
             return False  # Cannot delete default profile
 
-        if name in self._config.profiles:
-            del self._config.profiles[name]
+        if name in config.profiles:
+            del config.profiles[name]
 
             # If deleting current profile, switch to default
             if self.current_profile == name:
                 self.current_profile = DEFAULT_PROFILE
-                self._config.general.last_profile = DEFAULT_PROFILE
+                config.general.last_profile = DEFAULT_PROFILE
 
             self.save_config()
             return True
@@ -434,7 +486,7 @@ class ConfigManager:
         """Get the path to the configuration file."""
         return str(self.config_file)
 
-    def parse_key_combination(self, key_str: str) -> set[keyboard.Key]:
+    def parse_key_combination(self, key_str: str) -> set[Any]:
         """Parse a key combination string into a set of pynput Key objects.
 
         Uses pynput's built-in HotKey.parse for robust parsing.
@@ -445,7 +497,7 @@ class ConfigManager:
         except ValidationError as e:
             raise ValueError(str(e)) from e
 
-    def parse_key_string(self, key_str: str) -> keyboard.Key:
+    def parse_key_string(self, key_str: str) -> Any:
         """Parse a single key string into a pynput Key object.
 
         Uses the same format as parse_key_combination but ensures only single keys.

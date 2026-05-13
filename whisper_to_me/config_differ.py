@@ -9,7 +9,7 @@ from dataclasses import asdict
 from typing import Any
 
 
-class ConfigDiffer[T]:
+class ConfigDiffer:
     """
     Generic configuration differ for comparing and creating section diffs.
 
@@ -20,7 +20,7 @@ class ConfigDiffer[T]:
     - Clean API for profile creation workflows
     """
 
-    def __init__(self, exclude_fields: set[str] = None):
+    def __init__(self, exclude_fields: set[str] | None = None):
         """
         Initialize the configuration differ.
 
@@ -30,7 +30,7 @@ class ConfigDiffer[T]:
         self.exclude_fields = exclude_fields or set()
 
     def create_diff(
-        self, current_config: T, default_config: dict, section_name: str
+        self, current_config: Any, default_config: dict, section_name: str
     ) -> dict[str, Any]:
         """
         Create a diff between current config and defaults for a specific section.
@@ -61,7 +61,7 @@ class ConfigDiffer[T]:
 
         return diff
 
-    def apply_diff(self, base_config: T, diff: dict[str, Any]) -> None:
+    def apply_diff(self, base_config: Any, diff: dict[str, Any]) -> None:
         """
         Apply a diff to a configuration object in place.
 
@@ -85,7 +85,7 @@ class ConfigDiffer[T]:
                 )
 
     def has_changes(
-        self, current_config: T, default_config: dict, section_name: str
+        self, current_config: Any, default_config: dict, section_name: str
     ) -> bool:
         """
         Check if current config has any changes from defaults.
@@ -101,7 +101,7 @@ class ConfigDiffer[T]:
         diff = self.create_diff(current_config, default_config, section_name)
         return len(diff) > 0
 
-    def merge_configs(self, base_config: T, override_config: dict[str, Any]) -> T:
+    def merge_configs(self, base_config: Any, override_config: dict[str, Any]) -> Any:
         """
         Create a new config by merging base with overrides.
 
@@ -140,6 +140,7 @@ class ConfigSectionDiffer:
         self.ui_differ = ConfigDiffer()
         self.advanced_differ = ConfigDiffer()
         self.processing_differ = ConfigDiffer()
+        self.transcription_differ = ConfigDiffer()
 
     def create_profile_data(
         self, config, default_config: dict[str, Any]
@@ -185,6 +186,12 @@ class ConfigSectionDiffer:
         if processing_diff:
             profile_data["processing"] = processing_diff
 
+        transcription_diff = self.transcription_differ.create_diff(
+            config.transcription, default_config, "transcription"
+        )
+        if transcription_diff:
+            profile_data["transcription"] = transcription_diff
+
         return profile_data
 
     def apply_profile_data(self, base_config, profile_data: dict[str, Any]) -> None:
@@ -214,4 +221,9 @@ class ConfigSectionDiffer:
         if "processing" in profile_data:
             self.processing_differ.apply_diff(
                 base_config.processing, profile_data["processing"]
+            )
+
+        if "transcription" in profile_data:
+            self.transcription_differ.apply_diff(
+                base_config.transcription, profile_data["transcription"]
             )

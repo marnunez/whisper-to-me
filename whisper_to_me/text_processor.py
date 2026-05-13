@@ -7,24 +7,50 @@ filler words, fix repetitions, and apply smart formatting.
 
 from __future__ import annotations
 
+import base64
 import json
 import os
+import ssl
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    import anthropic
-    import ollama
-    import openai
-    from anthropic.types import TextBlock
+from typing import Any
 
 from whisper_to_me.logger import get_logger
 
-# Pi OAuth constants (from pi-ai/anthropic.js)
+# Pi OAuth constants (from pi-ai)
 _PI_AUTH_FILE = Path.home() / ".pi" / "agent" / "auth.json"
 _ANTHROPIC_TOKEN_URL = "https://platform.claude.com/v1/oauth/token"
 _ANTHROPIC_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
+_OPENAI_CODEX_TOKEN_URL = "https://auth.openai.com/oauth/token"
+_OPENAI_CODEX_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
+_OPENAI_CODEX_API_URL = "https://chatgpt.com/backend-api/codex/responses"
+_OPENAI_CODEX_JWT_CLAIM_PATH = "https://api.openai.com/auth"
+
+
+def _create_ssl_context() -> ssl.SSLContext:
+    """Create an SSL context that works in uv/Nix environments."""
+    cafile = os.environ.get("SSL_CERT_FILE") or os.environ.get("REQUESTS_CA_BUNDLE")
+    if not cafile:
+        try:
+            import certifi
+
+            cafile = certifi.where()
+        except ImportError:
+            cafile = None
+    return ssl.create_default_context(cafile=cafile)
+
+
+def _urlopen(request: urllib.request.Request, timeout: int):
+    """Open a URL with an explicit CA bundle for TLS verification."""
+    return urllib.request.urlopen(
+        request,
+        timeout=timeout,
+        context=_create_ssl_context(),
+    )
+
 
 # Default system prompt for LLM text cleanup
 DEFAULT_SYSTEM_PROMPT = """\
@@ -129,7 +155,9 @@ class TextProcessor:
             )
 
     def _match_context(
-        self, target: str, field: str = "match",
+        self,
+        target: str,
+        field: str = "match",
     ) -> tuple[str, dict[str, Any]] | None:
         """Try to match a target string against context match/match_title lists."""
         for name, ctx in self.contexts.items():
@@ -177,18 +205,14 @@ class TextProcessor:
                 if hint:
                     parts.append(f"Context: {hint}")
                 if terms:
-                    parts.append(
-                        f"Domain terms for this context: {', '.join(terms)}"
-                    )
+                    parts.append(f"Domain terms for this context: {', '.join(terms)}")
                 self.logger.debug(
                     f"Window context: {name} (app={app}, title={title!r})",
                     "processing",
                 )
 
         if parts:
-            self.logger.debug(
-                f"Window title: {title or '(none)'}", "processing"
-            )
+            self.logger.debug(f"Window title: {title or '(none)'}", "processing")
             return "\n".join(parts)
         return ""
 
@@ -220,6 +244,8 @@ class TextProcessor:
                 result = self._process_ollama(text)
             elif self.backend == "openai":
                 result = self._process_openai(text)
+            elif self.backend == "openai-codex":
+                result = self._process_openai_codex(text)
             elif self.backend in ("anthropic", "pi"):
                 result = self._process_anthropic(text)
             else:
@@ -285,21 +311,26 @@ class TextProcessor:
         return response.message.content
 
     @staticmethod
-    def _load_pi_auth() -> dict[str, Any]:
-        """Load and return the Anthropic OAuth credentials from pi's auth.json."""
+    def _load_pi_provider_auth(provider: str, display_name: str) -> dict[str, Any]:
+        """Load OAuth credentials for a pi provider from auth.json."""
         if not _PI_AUTH_FILE.exists():
             raise RuntimeError(
                 f"Pi auth file not found at {_PI_AUTH_FILE}. "
-                "Run 'pi' and authenticate with your Anthropic account first."
+                f"Run 'pi' and authenticate with your {display_name} account first."
             )
         data = json.loads(_PI_AUTH_FILE.read_text())
-        auth = data.get("anthropic")
+        auth = data.get(provider)
         if not auth or auth.get("type") != "oauth":
             raise RuntimeError(
-                "No Anthropic OAuth credentials in pi auth file. "
-                "Run 'pi' and authenticate with your Anthropic account."
+                f"No {display_name} OAuth credentials in pi auth file. "
+                f"Run 'pi' and authenticate with {display_name}."
             )
         return auth
+
+    @staticmethod
+    def _load_pi_auth() -> dict[str, Any]:
+        """Load and return the Anthropic OAuth credentials from pi's auth.json."""
+        return TextProcessor._load_pi_provider_auth("anthropic", "Anthropic")
 
     @staticmethod
     def _refresh_pi_token(auth: dict[str, Any]) -> dict[str, Any]:
@@ -322,7 +353,7 @@ class TextProcessor:
                 "Accept": "application/json",
             },
         )
-        with urllib.request.urlopen(req, timeout=30) as resp:
+        with _urlopen(req, timeout=30) as resp:
             token_data = json.loads(resp.read())
 
         new_auth = {
@@ -428,6 +459,215 @@ class TextProcessor:
 
         return response.choices[0].message.content
 
+    @staticmethod
+    def _decode_jwt_payload(token: str) -> dict[str, Any]:
+        """Decode a JWT payload without validating it."""
+        try:
+            payload = token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            return json.loads(base64.urlsafe_b64decode(payload))
+        except Exception as e:
+            raise RuntimeError("Failed to decode OpenAI Codex OAuth token") from e
+
+    @classmethod
+    def _get_openai_codex_account_id(cls, token: str) -> str:
+        """Extract the ChatGPT account ID from an OpenAI Codex JWT."""
+        payload = cls._decode_jwt_payload(token)
+        account_id = payload.get(_OPENAI_CODEX_JWT_CLAIM_PATH, {}).get(
+            "chatgpt_account_id"
+        )
+        if not account_id:
+            raise RuntimeError("Failed to extract accountId from OpenAI Codex token")
+        return account_id
+
+    @staticmethod
+    def _refresh_openai_codex_token(auth: dict[str, Any]) -> dict[str, Any]:
+        """Refresh the OpenAI Codex OAuth token using pi's refresh token."""
+        body = urllib.parse.urlencode(
+            {
+                "grant_type": "refresh_token",
+                "refresh_token": auth["refresh"],
+                "client_id": _OPENAI_CODEX_CLIENT_ID,
+            }
+        ).encode()
+
+        req = urllib.request.Request(
+            _OPENAI_CODEX_TOKEN_URL,
+            data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+        )
+        with _urlopen(req, timeout=30) as resp:
+            token_data = json.loads(resp.read())
+
+        access = token_data.get("access_token")
+        refresh = token_data.get("refresh_token")
+        expires_in = token_data.get("expires_in")
+        if not access or not refresh or not isinstance(expires_in, int):
+            raise RuntimeError("OpenAI Codex token refresh response missing fields")
+
+        new_auth = {
+            **auth,
+            "access": access,
+            "refresh": refresh,
+            "expires": int(time.time() * 1000) + expires_in * 1000,
+            "accountId": TextProcessor._get_openai_codex_account_id(access),
+        }
+
+        all_data = json.loads(_PI_AUTH_FILE.read_text())
+        all_data["openai-codex"] = new_auth
+        _PI_AUTH_FILE.write_text(json.dumps(all_data, indent=2))
+        _PI_AUTH_FILE.chmod(0o600)
+
+        return new_auth
+
+    def _get_openai_codex_credentials(self) -> tuple[str, str]:
+        """Get a valid OpenAI Codex access token and ChatGPT account ID."""
+        auth = self._load_pi_provider_auth("openai-codex", "OpenAI Codex")
+
+        if auth.get("expires", 0) < time.time() * 1000:
+            self.logger.debug(
+                "OpenAI Codex OAuth token expired, refreshing...", "processing"
+            )
+            auth = self._refresh_openai_codex_token(auth)
+            self.logger.debug("OpenAI Codex OAuth token refreshed", "processing")
+
+        token = auth["access"]
+        account_id = auth.get("accountId") or self._get_openai_codex_account_id(token)
+        return token, account_id
+
+    @staticmethod
+    def _resolve_openai_codex_url(api_url: str) -> str:
+        """Resolve a ChatGPT backend URL to the Codex responses endpoint."""
+        if not api_url:
+            return _OPENAI_CODEX_API_URL
+        normalized = api_url.rstrip("/")
+        if normalized.endswith("/codex/responses"):
+            return normalized
+        if normalized.endswith("/codex"):
+            return f"{normalized}/responses"
+        return f"{normalized}/codex/responses"
+
+    @staticmethod
+    def _parse_openai_codex_sse(response: Any) -> str | None:
+        """Parse the Codex SSE stream and return the final text."""
+        parts: list[str] = []
+        final_text: str | None = None
+        data_lines: list[str] = []
+
+        def handle_event(data: str) -> None:
+            nonlocal final_text
+            if not data or data == "[DONE]":
+                return
+            event = json.loads(data)
+            event_type = event.get("type")
+
+            if event_type == "error":
+                message = event.get("message") or event.get("code") or str(event)
+                raise RuntimeError(f"OpenAI Codex error: {message}")
+
+            if event_type == "response.failed":
+                error = event.get("response", {}).get("error", {})
+                raise RuntimeError(
+                    error.get("message") or "OpenAI Codex response failed"
+                )
+
+            if event_type == "response.output_text.delta":
+                parts.append(event.get("delta", ""))
+                return
+
+            if event_type == "response.output_item.done":
+                item = event.get("item", {})
+                if item.get("type") == "message":
+                    content = item.get("content", [])
+                    final_text = "".join(
+                        part.get("text") or part.get("refusal") or ""
+                        for part in content
+                        if part.get("type") in {"output_text", "refusal"}
+                    )
+                return
+
+            if event_type in {
+                "response.completed",
+                "response.done",
+                "response.incomplete",
+            }:
+                response_obj = event.get("response", {})
+                output = response_obj.get("output", [])
+                text_chunks: list[str] = []
+                for item in output:
+                    if item.get("type") != "message":
+                        continue
+                    for part in item.get("content", []):
+                        if part.get("type") in {"output_text", "refusal"}:
+                            text_chunks.append(
+                                part.get("text") or part.get("refusal") or ""
+                            )
+                if text_chunks:
+                    final_text = "".join(text_chunks)
+
+        for raw_line in response:
+            line = raw_line.decode("utf-8", errors="replace").rstrip("\r\n")
+            if line == "":
+                if data_lines:
+                    handle_event("\n".join(data_lines).strip())
+                    data_lines = []
+                continue
+            if line.startswith("data:"):
+                data_lines.append(line[5:].strip())
+
+        if data_lines:
+            handle_event("\n".join(data_lines).strip())
+
+        return final_text if final_text is not None else "".join(parts)
+
+    def _process_openai_codex(self, text: str) -> str | None:
+        """Process text using pi's OpenAI Codex OAuth credentials."""
+        token, account_id = self._get_openai_codex_credentials()
+        wrapped = f"[TRANSCRIPTION]\n{text}\n[/TRANSCRIPTION]"
+        url = self._resolve_openai_codex_url(self.api_url)
+
+        body = {
+            "model": self.model,
+            "store": False,
+            "stream": True,
+            "instructions": self._build_system_prompt(),
+            "input": [
+                {
+                    "role": "user",
+                    "content": [{"type": "input_text", "text": wrapped}],
+                }
+            ],
+            "text": {"verbosity": "low"},
+        }
+        # ChatGPT Codex rejects the temperature parameter for current models.
+        if self.thinking:
+            body["reasoning"] = {
+                "effort": "low" if self.thinking == "low" else "medium",
+                "summary": "auto",
+            }
+
+        req = urllib.request.Request(
+            url,
+            data=json.dumps(body).encode(),
+            headers={
+                "Authorization": f"Bearer {token}",
+                "chatgpt-account-id": account_id,
+                "originator": "pi",
+                "User-Agent": "pi (whisper-to-me)",
+                "OpenAI-Beta": "responses=experimental",
+                "accept": "text/event-stream",
+                "content-type": "application/json",
+            },
+        )
+
+        try:
+            with _urlopen(req, timeout=self.timeout) as resp:
+                return self._parse_openai_codex_sse(resp)
+        except urllib.error.HTTPError as e:
+            error_text = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(
+                f"OpenAI Codex request failed ({e.code}): {error_text}"
+            ) from e
 
     def get_info(self) -> dict[str, Any]:
         """Get text processor configuration info."""

@@ -57,6 +57,16 @@ class TestConfigManager:
         assert config.recording.trigger_key == "<scroll_lock>"
         assert config.ui.use_tray is True
         assert config.advanced.initial_prompt == ""
+        assert config.advanced.task == "transcribe"
+        assert config.advanced.beam_size == 5
+        assert config.advanced.best_of == 5
+        assert config.advanced.temperature == 0.0
+        assert config.advanced.condition_on_previous_text is False
+        assert config.advanced.no_speech_threshold == 0.6
+        assert config.advanced.log_prob_threshold == -1.0
+        assert config.advanced.compression_ratio_threshold == 2.4
+        assert config.transcription.backend == "local"
+        assert config.transcription.url == ""
 
     def test_profile_creation_and_loading(self):
         """Test creating and loading custom profiles."""

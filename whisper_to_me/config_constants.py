@@ -13,6 +13,7 @@ RECORDING_SECTION: Final[str] = "recording"
 UI_SECTION: Final[str] = "ui"
 ADVANCED_SECTION: Final[str] = "advanced"
 PROCESSING_SECTION: Final[str] = "processing"
+TRANSCRIPTION_SECTION: Final[str] = "transcription"
 PROFILES_SECTION: Final[str] = "profiles"
 
 # All configuration sections
@@ -22,6 +23,7 @@ ALL_SECTIONS: Final[list[str]] = [
     UI_SECTION,
     ADVANCED_SECTION,
     PROCESSING_SECTION,
+    TRANSCRIPTION_SECTION,
     PROFILES_SECTION,
 ]
 
@@ -32,6 +34,7 @@ REQUIRED_SECTIONS: Final[list[str]] = [
     UI_SECTION,
     ADVANCED_SECTION,
     PROCESSING_SECTION,
+    TRANSCRIPTION_SECTION,
 ]
 
 # Default profile name
@@ -71,6 +74,7 @@ class AdvancedFields:
     CHUNK_SIZE: Final[str] = "chunk_size"
     VAD_FILTER: Final[str] = "vad_filter"
     INITIAL_PROMPT: Final[str] = "initial_prompt"
+    FAST_TYPING_DELAY_MS: Final[str] = "fast_typing_delay_ms"
 
 
 class ProcessingFields:
@@ -86,14 +90,35 @@ class ProcessingFields:
     TIMEOUT: Final[str] = "timeout"
 
 
+class TranscriptionFields:
+    """Field names for transcription backend configuration."""
+
+    BACKEND: Final[str] = "backend"
+    URL: Final[str] = "url"
+    MODEL: Final[str] = "model"
+    API_KEY: Final[str] = "api_key"
+    TIMEOUT: Final[str] = "timeout"
+    FALLBACK_TO_LOCAL: Final[str] = "fallback_to_local"
+
+
 # Processing backends
 class ProcessingBackends:
     """Valid processing backend constants."""
 
     OLLAMA: Final[str] = "ollama"
     OPENAI: Final[str] = "openai"
+    OPENAI_CODEX: Final[str] = "openai-codex"
     ANTHROPIC: Final[str] = "anthropic"
     PI: Final[str] = "pi"  # alias for anthropic, uses pi's OAuth credentials
+
+
+class TranscriptionBackends:
+    """Valid speech-to-text backend constants."""
+
+    LOCAL: Final[str] = "local"
+    WHISPER_ASR: Final[str] = "whisper-asr"
+    REMOTE: Final[str] = "remote"  # alias for whisper-asr/simple multipart APIs
+    OPENAI: Final[str] = "openai"
 
 
 # Recording modes

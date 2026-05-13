@@ -90,8 +90,12 @@ The application will:
 whisper-to-me [options]
 
 Options:
-  --model MODEL         Whisper model size (tiny, base, small, medium, large-v3)
-  --device DEVICE       Processing device (cpu, cuda)
+  --model MODEL         Whisper model size for local transcription
+  --device DEVICE       Processing device for local transcription (cpu, cuda)
+  --transcription-backend BACKEND
+                       Speech backend: local, whisper-asr/remote, or openai
+  --transcription-url URL
+                       Remote transcription endpoint URL
   --key KEY            Trigger key (single key or combination, e.g.,
                        <scroll_lock>, <ctrl>+<shift>+r)
   --language LANG      Target language (auto, en, es, fr, etc.)
@@ -115,6 +119,11 @@ whisper-to-me
 
 # Use smaller model on CPU with caps lock trigger
 whisper-to-me --model base --device cpu --key "<caps_lock>"
+
+# Offload transcription to a self-hosted whisper-asr service
+whisper-to-me \
+  --transcription-backend whisper-asr \
+  --transcription-url http://asr.example:8080/transcribe
 
 # Use key combination as trigger (Ctrl+Shift+R)
 whisper-to-me --key "<ctrl>+<shift>+r"
@@ -179,6 +188,32 @@ whisper-to-me --config-path
   - Options: `true`, `false` (default)
   - Affects: Saves audio files for troubleshooting
 
+#### Transcription Backend (`[transcription]`)
+
+- **`backend`**: Speech-to-text backend
+  - Options: `"local"` (default), `"whisper-asr"`, `"remote"`, `"openai"`
+  - `"local"` uses FasterWhisper/CTranslate2 on this machine
+  - `"whisper-asr"`/`"remote"` posts the WAV to a simple multipart endpoint and reads the `text` JSON field
+  - `"openai"` posts to an OpenAI-compatible `/v1/audio/transcriptions` endpoint
+
+- **`url`**: Remote transcription URL
+  - Simple whisper-asr example: `"http://asr.example:8080/transcribe"`
+  - OpenAI-compatible example: `"http://asr.example:9000"` or the full `/v1/audio/transcriptions` URL
+
+- **`model`**: Remote model field for OpenAI-compatible endpoints
+  - Default: `"whisper-1"`
+  - Ignored by the simple whisper-asr endpoint
+
+- **`api_key`**: Optional bearer token for remote endpoints
+  - Default: empty string
+
+- **`timeout`**: Remote request timeout in seconds
+  - Default: `30`
+
+- **`fallback_to_local`**: Whether to use the local FasterWhisper backend if remote transcription fails
+  - Default: `false`
+  - If enabled, the local model is loaded lazily on the first remote failure
+
 #### Recording Settings (`[recording]`)
 
 - **`mode`**: Recording mode
@@ -212,6 +247,38 @@ whisper-to-me --config-path
 - **`vad_filter`**: Voice Activity Detection filter
   - Default: `true`
   - Affects: Noise filtering during recording
+
+- **`task`**: Whisper task
+  - Options: `"transcribe"` (default), `"translate"`
+  - `"translate"` translates recognised speech to English when supported by the backend/model
+
+- **`beam_size`**: Beam-search width
+  - Default: `5`
+  - Higher values may improve accuracy at the cost of latency
+
+- **`best_of`**: Number of candidates for non-zero-temperature sampling
+  - Default: `5`
+
+- **`temperature`**: Decoding temperature
+  - Default: `0.0`
+  - Keep at `0.0` for deterministic dictation
+
+- **`condition_on_previous_text`**: Condition each segment on previous output
+  - Default: `false`
+  - Keeping this disabled reduces repeated-text hallucinations in short dictation clips
+
+- **`initial_prompt`**: Optional context/punctuation/style hint for Whisper
+  - Default: empty string
+  - Sent to both local FasterWhisper and remote backends that support prompts
+
+- **`no_speech_threshold`**, **`log_prob_threshold`**, **`compression_ratio_threshold`**: Whisper failure/hallucination thresholds
+  - Defaults: `0.6`, `-1.0`, `2.4`
+
+- **`hallucination_silence_threshold`**: Optional silence threshold for hallucination suppression
+  - Default: unset
+
+- **`hotwords`**: Optional comma-separated or free-form context words for faster-whisper
+  - Default: empty string
 
 - **`min_silence_duration_ms`**: Minimum silence duration to split audio segments
   - Default: `2000` (2 seconds)
@@ -250,6 +317,18 @@ language = "auto"
 debug = false
 last_profile = "default"
 
+[transcription]
+backend = "local"
+url = ""
+model = "whisper-1"
+api_key = ""
+timeout = 30
+fallback_to_local = false
+
+# To offload to a self-hosted whisper-asr service instead:
+# backend = "whisper-asr"
+# url = "http://asr.example:8080/transcribe"
+
 [recording]
 mode = "push-to-talk"
 trigger_key = "<scroll_lock>"
@@ -262,6 +341,16 @@ use_tray = true
 [advanced]
 chunk_size = 512
 vad_filter = true
+initial_prompt = ""
+task = "transcribe"
+beam_size = 5
+best_of = 5
+temperature = 0.0
+condition_on_previous_text = false
+no_speech_threshold = 0.6
+log_prob_threshold = -1.0
+compression_ratio_threshold = 2.4
+hotwords = ""
 min_silence_duration_ms = 2000
 speech_pad_ms = 400
 
@@ -322,8 +411,9 @@ The system tray icon shows:
 1. **Single Instance Protection**: Ensures only one instance runs at a time
 2. **Global Hotkey Detection**: Monitors for configured trigger key across all applications
 3. **Audio Recording**: Captures microphone input while key is held
-4. **Speech Processing**: Uses FasterWhisper for local speech-to-text
-   conversion
+4. **Speech Processing**: Uses the configured transcription backend:
+   local FasterWhisper, a simple remote whisper-asr endpoint, or an
+   OpenAI-compatible transcription endpoint
 5. **Keystroke Simulation**: Types the transcribed text directly into the
    active application
 6. **System Integration**: Shows status in system tray with visual feedback

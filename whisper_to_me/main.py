@@ -33,7 +33,7 @@ from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import LogLevel, get_logger, setup_logger
 from whisper_to_me.single_instance import SingleInstance
 from whisper_to_me.speech_processor import SpeechProcessor
-from whisper_to_me.text_processor import TextProcessor, TextProcessingError
+from whisper_to_me.text_processor import TextProcessingError, TextProcessor
 
 # TrayIcon imported lazily — pystray needs GTK typelibs at import time
 
@@ -131,10 +131,29 @@ class WhisperToMe:
             allowed_languages=self.config.general.allowed_languages,
             vad_filter=self.config.advanced.vad_filter,
             initial_prompt=self.config.advanced.initial_prompt,
+            task=self.config.advanced.task,
+            beam_size=self.config.advanced.beam_size,
+            best_of=self.config.advanced.best_of,
+            temperature=self.config.advanced.temperature,
+            condition_on_previous_text=self.config.advanced.condition_on_previous_text,
+            no_speech_threshold=self.config.advanced.no_speech_threshold,
+            log_prob_threshold=self.config.advanced.log_prob_threshold,
+            compression_ratio_threshold=self.config.advanced.compression_ratio_threshold,
+            hallucination_silence_threshold=self.config.advanced.hallucination_silence_threshold,
+            hotwords=self.config.advanced.hotwords,
             min_silence_duration_ms=self.config.advanced.min_silence_duration_ms,
             speech_pad_ms=self.config.advanced.speech_pad_ms,
+            transcription_backend=self.config.transcription.backend,
+            remote_url=self.config.transcription.url,
+            remote_model=self.config.transcription.model,
+            remote_api_key=self.config.transcription.api_key,
+            remote_timeout=self.config.transcription.timeout,
+            remote_fallback_to_local=self.config.transcription.fallback_to_local,
         )
-        self.keystroke_handler = KeystrokeHandler(backend=self.display_backend)
+        self.keystroke_handler = KeystrokeHandler(
+            backend=self.display_backend,
+            fast_typing_delay_ms=self.config.advanced.fast_typing_delay_ms,
+        )
 
         # Initialize text processor
         self.text_processor = TextProcessor(
@@ -230,24 +249,19 @@ class WhisperToMe:
         old_language = self.config.general.language
         old_model = self.config.general.model
         old_device = self.config.general.device
-        old_initial_prompt = self.config.advanced.initial_prompt
-        old_vad_filter = self.config.advanced.vad_filter
-        old_min_silence_duration_ms = self.config.advanced.min_silence_duration_ms
-        old_speech_pad_ms = self.config.advanced.speech_pad_ms
+        old_advanced = self.config.advanced
+        old_transcription = self.config.transcription
 
         self.config = new_config
         self._update_from_config()
 
-        # Update speech processor if language/model/device/initial_prompt/vad changed
+        # Update speech processor if language/model/device/transcription settings changed
         if (
             old_language != new_config.general.language
             or old_model != new_config.general.model
             or old_device != new_config.general.device
-            or old_initial_prompt != new_config.advanced.initial_prompt
-            or old_vad_filter != new_config.advanced.vad_filter
-            or old_min_silence_duration_ms
-            != new_config.advanced.min_silence_duration_ms
-            or old_speech_pad_ms != new_config.advanced.speech_pad_ms
+            or old_advanced != new_config.advanced
+            or old_transcription != new_config.transcription
         ):
             if old_language != new_config.general.language:
                 self.logger.info(
@@ -276,8 +290,24 @@ class WhisperToMe:
                 allowed_languages=new_config.general.allowed_languages,
                 vad_filter=new_config.advanced.vad_filter,
                 initial_prompt=new_config.advanced.initial_prompt,
+                task=new_config.advanced.task,
+                beam_size=new_config.advanced.beam_size,
+                best_of=new_config.advanced.best_of,
+                temperature=new_config.advanced.temperature,
+                condition_on_previous_text=new_config.advanced.condition_on_previous_text,
+                no_speech_threshold=new_config.advanced.no_speech_threshold,
+                log_prob_threshold=new_config.advanced.log_prob_threshold,
+                compression_ratio_threshold=new_config.advanced.compression_ratio_threshold,
+                hallucination_silence_threshold=new_config.advanced.hallucination_silence_threshold,
+                hotwords=new_config.advanced.hotwords,
                 min_silence_duration_ms=new_config.advanced.min_silence_duration_ms,
                 speech_pad_ms=new_config.advanced.speech_pad_ms,
+                transcription_backend=new_config.transcription.backend,
+                remote_url=new_config.transcription.url,
+                remote_model=new_config.transcription.model,
+                remote_api_key=new_config.transcription.api_key,
+                remote_timeout=new_config.transcription.timeout,
+                remote_fallback_to_local=new_config.transcription.fallback_to_local,
             )
 
         # Reinitialize text processor with new profile settings
@@ -363,9 +393,7 @@ class WhisperToMe:
             )
 
             # Update config with new device
-            self.config.recording.audio_device = (
-                self.device_manager.get_device_config()
-            )
+            self.config.recording.audio_device = self.device_manager.get_device_config()
             self.config_manager.save_config()
 
             # Refresh tray menu to update device list
@@ -448,19 +476,28 @@ class WhisperToMe:
                 self.logger.debug(f"Saved audio as {debug_filename}", "debug")
 
             # Prepare audio for Whisper and transcribe
+            import time
+
             whisper_audio = self.audio_recorder.get_audio_data_for_whisper(audio_data)
+            transcription_start = time.perf_counter()
             text, duration, language, confidence = self.speech_processor.transcribe(
                 whisper_audio
             )
+            transcription_elapsed = time.perf_counter() - transcription_start
 
             if text and text.strip():
                 self.logger.transcription_completed(text, language, confidence)
                 if self.debug:
-                    self.logger.debug(f"Duration: {duration:.2f}s", "speech")
+                    self.logger.debug(
+                        f"Transcription wall time: {transcription_elapsed:.2f}s "
+                        f"(audio duration: {duration:.2f}s)",
+                        "speech",
+                    )
 
                 # Optional LLM post-processing
                 if self.text_processor.enabled:
                     self.logger.debug(f"Raw text: '{text}'", "processing")
+                    processing_start = time.perf_counter()
                     try:
                         text = self.text_processor.process(text)
                     except TextProcessingError as e:
@@ -484,6 +521,20 @@ class WhisperToMe:
                         except FileNotFoundError:
                             pass
                         return
+                    if text is None:
+                        self.logger.error(
+                            "Post-processing returned no text, discarding transcription",
+                            "processing",
+                        )
+                        return
+                    if self.debug:
+                        processing_elapsed = time.perf_counter() - processing_start
+                        total_elapsed = transcription_elapsed + processing_elapsed
+                        self.logger.debug(
+                            f"Post-processing wall time: {processing_elapsed:.2f}s; "
+                            f"transcription + processing: {total_elapsed:.2f}s",
+                            "processing",
+                        )
                     self.logger.debug(f"Processed text: '{text}'", "processing")
 
                 self.keystroke_handler.type_text_fast(
@@ -584,6 +635,34 @@ Examples:
         "--device", default="cuda", help="Processing device (cpu, cuda)"
     )
     parser.add_argument(
+        "--transcription-backend",
+        choices=["local", "whisper-asr", "remote", "openai"],
+        help="Speech-to-text backend: local FasterWhisper, simple remote whisper-asr, or OpenAI-compatible",
+    )
+    parser.add_argument(
+        "--transcription-url",
+        help="Remote transcription endpoint URL, e.g. http://asr.example:8080/transcribe",
+    )
+    parser.add_argument(
+        "--transcription-model",
+        help="Remote model name for OpenAI-compatible transcription endpoints",
+    )
+    parser.add_argument(
+        "--transcription-api-key",
+        help="Optional bearer token for remote transcription endpoints",
+    )
+    parser.add_argument(
+        "--transcription-timeout",
+        type=int,
+        help="Remote transcription timeout in seconds",
+    )
+    parser.add_argument(
+        "--transcription-fallback-to-local",
+        action="store_true",
+        default=None,
+        help="Fall back to local FasterWhisper if remote transcription fails",
+    )
+    parser.add_argument(
         "--key",
         default="<scroll_lock>",
         help="Trigger key (single key or combination, e.g., <scroll_lock>, <ctrl>+<shift>+r, <ctrl>+-)",
@@ -652,6 +731,7 @@ Examples:
     parser.add_argument(
         "--trailing-space",
         action="store_true",
+        default=None,
         help="Add a trailing space after transcribed text",
     )
     parser.add_argument(
@@ -668,6 +748,11 @@ Examples:
         "--speech-pad-ms",
         type=int,
         help="Amount of padding to keep around detected speech (in milliseconds, default: 400)",
+    )
+    parser.add_argument(
+        "--fast-typing-delay-ms",
+        type=int,
+        help="Delay between injected keystrokes in fast typing mode (milliseconds, default: 0)",
     )
     parser.add_argument(
         "--backend",
@@ -688,8 +773,8 @@ Examples:
     )
     parser.add_argument(
         "--processing-backend",
-        choices=["ollama", "openai", "anthropic", "pi"],
-        help="LLM backend for text processing (ollama, openai, anthropic, or pi)",
+        choices=["ollama", "openai", "openai-codex", "anthropic", "pi"],
+        help="LLM backend for text processing (ollama, openai, openai-codex, anthropic, or pi)",
     )
     parser.add_argument(
         "--processing-model",
@@ -794,6 +879,20 @@ Examples:
     config.general.device = override_if_provided(config.general.device, args.device)
     config.general.debug = override_if_provided(config.general.debug, args.debug)
 
+    # Override transcription backend settings
+    if args.transcription_backend is not None:
+        config.transcription.backend = args.transcription_backend
+    if args.transcription_url is not None:
+        config.transcription.url = args.transcription_url
+    if args.transcription_model is not None:
+        config.transcription.model = args.transcription_model
+    if args.transcription_api_key is not None:
+        config.transcription.api_key = args.transcription_api_key
+    if args.transcription_timeout is not None:
+        config.transcription.timeout = args.transcription_timeout
+    if args.transcription_fallback_to_local is not None:
+        config.transcription.fallback_to_local = args.transcription_fallback_to_local
+
     # Handle language override
     if args.language and args.language != "auto":
         config.general.language = args.language
@@ -838,6 +937,8 @@ Examples:
         config.advanced.min_silence_duration_ms = args.min_silence_duration_ms
     if args.speech_pad_ms is not None:
         config.advanced.speech_pad_ms = args.speech_pad_ms
+    if args.fast_typing_delay_ms is not None:
+        config.advanced.fast_typing_delay_ms = args.fast_typing_delay_ms
 
     # Override processing settings
     if args.processing and args.no_processing:

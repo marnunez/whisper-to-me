@@ -1,5 +1,6 @@
 """Test text processor functionality."""
 
+import json
 import sys
 from unittest.mock import MagicMock, Mock, patch
 
@@ -261,6 +262,81 @@ class TestTextProcessorOpenAI:
 
         call_kwargs = mock_client.chat.completions.create.call_args.kwargs
         assert call_kwargs["temperature"] == 0.5
+
+
+class TestTextProcessorOpenAICodex:
+    """Test OpenAI Codex backend integration."""
+
+    def test_resolve_openai_codex_url_default(self):
+        """Empty URL should use the ChatGPT Codex endpoint."""
+        assert TextProcessor._resolve_openai_codex_url("") == (
+            "https://chatgpt.com/backend-api/codex/responses"
+        )
+
+    def test_resolve_openai_codex_url_base(self):
+        """Base URL should resolve to /codex/responses."""
+        assert TextProcessor._resolve_openai_codex_url("https://example.com/api") == (
+            "https://example.com/api/codex/responses"
+        )
+        assert TextProcessor._resolve_openai_codex_url("https://example.com/api/codex") == (
+            "https://example.com/api/codex/responses"
+        )
+
+    def test_parse_openai_codex_sse_delta(self):
+        """SSE output_text deltas should be joined."""
+        response = [
+            b'data: {"type":"response.output_text.delta","delta":"cleaned"}\n',
+            b"\n",
+            b'data: {"type":"response.output_text.delta","delta":" text"}\n',
+            b"\n",
+        ]
+
+        assert TextProcessor._parse_openai_codex_sse(response) == "cleaned text"
+
+    def test_parse_openai_codex_sse_final_item(self):
+        """Final message items should override delta text."""
+        event = {
+            "type": "response.output_item.done",
+            "item": {
+                "type": "message",
+                "content": [{"type": "output_text", "text": "final text"}],
+            },
+        }
+        response = [f"data: {json.dumps(event)}\n".encode(), b"\n"]
+
+        assert TextProcessor._parse_openai_codex_sse(response) == "final text"
+
+    def test_openai_codex_success(self):
+        """Test successful OpenAI Codex processing."""
+        processor = TextProcessor(
+            enabled=True,
+            backend="openai-codex",
+            model="gpt-5.5",
+            temperature=0.4,
+        )
+        response = [
+            b'data: {"type":"response.output_text.delta","delta":"cleaned text"}\n',
+            b"\n",
+        ]
+
+        with patch.object(
+            processor,
+            "_get_openai_codex_credentials",
+            return_value=("token", "account-id"),
+        ), patch("whisper_to_me.text_processor.urllib.request.urlopen") as mock_urlopen:
+            mock_urlopen.return_value.__enter__.return_value = response
+            result = processor.process("um hello like world")
+
+        assert result == "cleaned text"
+        request = mock_urlopen.call_args.args[0]
+        body = json.loads(request.data.decode())
+        assert body["model"] == "gpt-5.5"
+        assert "temperature" not in body
+        assert body["input"][0]["content"][0]["text"] == (
+            "[TRANSCRIPTION]\num hello like world\n[/TRANSCRIPTION]"
+        )
+        assert request.get_header("Authorization") == "Bearer token"
+        assert request.get_header("Chatgpt-account-id") == "account-id"
 
 
 class TestTextProcessorUnknownBackend:
