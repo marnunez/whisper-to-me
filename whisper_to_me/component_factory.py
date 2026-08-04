@@ -14,6 +14,7 @@ from whisper_to_me.application_state_manager import ApplicationStateManager
 from whisper_to_me.audio_device_manager import AudioDeviceManager
 from whisper_to_me.audio_recorder import AudioRecorder
 from whisper_to_me.config import AppConfig, ConfigManager
+from whisper_to_me.context_builder import ContextBuilder
 from whisper_to_me.keystroke_handler import KeystrokeHandler
 from whisper_to_me.logger import get_logger
 from whisper_to_me.speech_processor import SpeechProcessor
@@ -146,6 +147,10 @@ class ComponentFactory:
             remote_api_key=self.config.transcription.api_key,
             remote_timeout=self.config.transcription.timeout,
             remote_fallback_to_local=self.config.transcription.fallback_to_local,
+            context_builder=ContextBuilder(
+                self.config.context,
+                display_backend=self.display_backend,
+            ),
         )
 
     def create_keystroke_handler(self) -> KeystrokeHandler:
@@ -243,6 +248,7 @@ class ComponentFactory:
             != new_config.advanced.min_silence_duration_ms
             or old_config.advanced.speech_pad_ms != new_config.advanced.speech_pad_ms
             or old_config.transcription != new_config.transcription
+            or old_config.context != new_config.context
         ):
             if old_config.general.language != new_config.general.language:
                 self.logger.info(

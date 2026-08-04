@@ -14,6 +14,7 @@ UI_SECTION: Final[str] = "ui"
 ADVANCED_SECTION: Final[str] = "advanced"
 PROCESSING_SECTION: Final[str] = "processing"
 TRANSCRIPTION_SECTION: Final[str] = "transcription"
+CONTEXT_SECTION: Final[str] = "context"
 PROFILES_SECTION: Final[str] = "profiles"
 
 # All configuration sections
@@ -24,6 +25,7 @@ ALL_SECTIONS: Final[list[str]] = [
     ADVANCED_SECTION,
     PROCESSING_SECTION,
     TRANSCRIPTION_SECTION,
+    CONTEXT_SECTION,
     PROFILES_SECTION,
 ]
 
@@ -35,10 +37,15 @@ REQUIRED_SECTIONS: Final[list[str]] = [
     ADVANCED_SECTION,
     PROCESSING_SECTION,
     TRANSCRIPTION_SECTION,
+    CONTEXT_SECTION,
 ]
 
 # Default profile name
 DEFAULT_PROFILE: Final[str] = "default"
+
+# Remote ASR model defaults
+DEFAULT_OPENAI_TRANSCRIPTION_MODEL: Final[str] = "whisper-1"
+DEFAULT_QWEN_ASR_MODEL: Final[str] = "Qwen/Qwen3-ASR-1.7B"
 
 
 # Configuration field names
@@ -101,6 +108,24 @@ class TranscriptionFields:
     FALLBACK_TO_LOCAL: Final[str] = "fallback_to_local"
 
 
+class ContextFields:
+    """Field names for shared ASR/processing context configuration."""
+
+    ENABLED: Final[str] = "enabled"
+    INCLUDE_WINDOW_TITLE: Final[str] = "include_window_title"
+    BASE: Final[str] = "base"
+    ASR_PROMPT: Final[str] = "asr_prompt"
+    PROCESSING_PROMPT: Final[str] = "processing_prompt"
+    TERMS: Final[str] = "terms"
+    ROLLING_GLOSSARY_ENABLED: Final[str] = "rolling_glossary_enabled"
+    ROLLING_GLOSSARY_RESET_ON_CONTEXT_CHANGE: Final[str] = "rolling_glossary_reset_on_context_change"
+    ROLLING_GLOSSARY_MAX_TERMS: Final[str] = "rolling_glossary_max_terms"
+    ROLLING_GLOSSARY_CONTEXT_TERMS: Final[str] = "rolling_glossary_context_terms"
+    MAX_ASR_CHARS: Final[str] = "max_asr_chars"
+    MAX_PROCESSING_CHARS: Final[str] = "max_processing_chars"
+    RULES: Final[str] = "rules"
+
+
 # Processing backends
 class ProcessingBackends:
     """Valid processing backend constants."""
@@ -118,6 +143,7 @@ class TranscriptionBackends:
     LOCAL: Final[str] = "local"
     WHISPER_ASR: Final[str] = "whisper-asr"
     REMOTE: Final[str] = "remote"  # alias for whisper-asr/simple multipart APIs
+    QWEN_ASR: Final[str] = "qwen-asr"
     OPENAI: Final[str] = "openai"
 
 

@@ -262,9 +262,88 @@ class TestSpeechProcessor:
         assert request.full_url == "http://asr.example:8080/transcribe"
         assert b'name="file"; filename="audio.wav"' in request.data
         assert b'name="task"' in request.data
-        assert b'transcribe' in request.data
+        assert b"transcribe" in request.data
         assert b'name="beam_size"' in request.data
         assert b'name="vad_filter"' in request.data
+
+    @patch("whisper_to_me.speech_processor.urllib.request.urlopen")
+    def test_qwen_asr_backend_uses_llama_cpp_schema(self, mock_urlopen):
+        """Qwen-ASR uses llama.cpp's OpenAI endpoint and response shape."""
+
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return False
+
+            def read(self):
+                return json.dumps(
+                    {
+                        "type": "transcript.text.done",
+                        "text": "language English<asr_text>Qwen text",
+                    }
+                ).encode()
+
+        mock_urlopen.return_value = FakeResponse()
+
+        processor = SpeechProcessor(
+            transcription_backend="qwen-asr",
+            remote_url="http://127.0.0.1:8081",
+            remote_model="whisper-1",
+        )
+        text, _duration, language, _confidence = processor.transcribe(
+            np.zeros(16000, dtype=np.float32)
+        )
+
+        assert text == "Qwen text"
+        assert language == "English"
+        request = mock_urlopen.call_args.args[0]
+        assert request.full_url == "http://127.0.0.1:8081/v1/audio/transcriptions"
+        assert b'name="model"' in request.data
+        assert b"Qwen/Qwen3-ASR-1.7B" in request.data
+        assert b"whisper-1" not in request.data
+        assert b'name="task"' not in request.data
+        assert b'name="context"' not in request.data
+        assert b'name="beam_size"' not in request.data
+
+    def test_qwen_asr_omits_context_for_short_audio(self):
+        """Qwen-ASR skips ASR context for sub-second clips."""
+        context_builder = MagicMock()
+        context_builder.build_asr_context.return_value = "x" * 1200
+        processor = SpeechProcessor(
+            transcription_backend="qwen-asr",
+            initial_prompt="Technical dictation.",
+            context_builder=context_builder,
+        )
+
+        fields = processor._remote_transcription_fields(
+            include_nonstandard=False,
+            audio_duration=0.58,
+        )
+
+        assert "context" not in fields
+        assert fields["prompt"] == "Technical dictation."
+        assert "initial_prompt" not in fields
+        context_builder.build_asr_context.assert_not_called()
+
+    def test_qwen_asr_folds_bounded_context_into_prompt(self):
+        """Qwen-ASR folds its bounded context into llama.cpp's prompt field."""
+        context_builder = MagicMock()
+        context_builder.build_asr_context.return_value = "x" * 1200
+        processor = SpeechProcessor(
+            transcription_backend="qwen-asr",
+            initial_prompt="Technical dictation.",
+            context_builder=context_builder,
+        )
+
+        fields = processor._remote_transcription_fields(
+            include_nonstandard=False,
+            audio_duration=2.0,
+        )
+
+        assert fields["prompt"] == f"{'x' * 400}\n\nTechnical dictation."
+        assert "context" not in fields
 
     @patch("whisper_to_me.speech_processor.urllib.request.urlopen")
     def test_openai_remote_url_resolution_and_fields(self, mock_urlopen):

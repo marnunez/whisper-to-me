@@ -141,6 +141,7 @@ class ConfigSectionDiffer:
         self.advanced_differ = ConfigDiffer()
         self.processing_differ = ConfigDiffer()
         self.transcription_differ = ConfigDiffer()
+        self.context_differ = ConfigDiffer()
 
     def create_profile_data(
         self, config, default_config: dict[str, Any]
@@ -192,6 +193,12 @@ class ConfigSectionDiffer:
         if transcription_diff:
             profile_data["transcription"] = transcription_diff
 
+        context_diff = self.context_differ.create_diff(
+            config.context, default_config, "context"
+        )
+        if context_diff:
+            profile_data["context"] = context_diff
+
         return profile_data
 
     def apply_profile_data(self, base_config, profile_data: dict[str, Any]) -> None:
@@ -227,3 +234,6 @@ class ConfigSectionDiffer:
             self.transcription_differ.apply_diff(
                 base_config.transcription, profile_data["transcription"]
             )
+
+        if "context" in profile_data:
+            self.context_differ.apply_diff(base_config.context, profile_data["context"])

@@ -93,7 +93,7 @@ Options:
   --model MODEL         Whisper model size for local transcription
   --device DEVICE       Processing device for local transcription (cpu, cuda)
   --transcription-backend BACKEND
-                       Speech backend: local, whisper-asr/remote, or openai
+                       Speech backend: local, whisper-asr/remote, qwen-asr, or openai
   --transcription-url URL
                        Remote transcription endpoint URL
   --key KEY            Trigger key (single key or combination, e.g.,
@@ -124,6 +124,11 @@ whisper-to-me --model base --device cpu --key "<caps_lock>"
 whisper-to-me \
   --transcription-backend whisper-asr \
   --transcription-url http://asr.example:8080/transcribe
+
+# Use Qwen3-ASR through llama.cpp's OpenAI-compatible endpoint
+whisper-to-me \
+  --transcription-backend qwen-asr \
+  --transcription-url http://127.0.0.1:8081
 
 # Use key combination as trigger (Ctrl+Shift+R)
 whisper-to-me --key "<ctrl>+<shift>+r"
@@ -191,17 +196,19 @@ whisper-to-me --config-path
 #### Transcription Backend (`[transcription]`)
 
 - **`backend`**: Speech-to-text backend
-  - Options: `"local"` (default), `"whisper-asr"`, `"remote"`, `"openai"`
+  - Options: `"local"` (default), `"whisper-asr"`, `"remote"`, `"qwen-asr"`, `"openai"`
   - `"local"` uses FasterWhisper/CTranslate2 on this machine
   - `"whisper-asr"`/`"remote"` posts the WAV to a simple multipart endpoint and reads the `text` JSON field
+  - `"qwen-asr"` uses llama.cpp's OpenAI-compatible `/v1/audio/transcriptions` endpoint, selects Qwen3-ASR by default, and normalises llama.cpp's transcript metadata
   - `"openai"` posts to an OpenAI-compatible `/v1/audio/transcriptions` endpoint
 
 - **`url`**: Remote transcription URL
   - Simple whisper-asr example: `"http://asr.example:8080/transcribe"`
-  - OpenAI-compatible example: `"http://asr.example:9000"` or the full `/v1/audio/transcriptions` URL
+  - llama.cpp/OpenAI-compatible example: `"http://127.0.0.1:8081"` or the full `/v1/audio/transcriptions` URL
 
 - **`model`**: Remote model field for OpenAI-compatible endpoints
   - Default: `"whisper-1"`
+  - With `backend = "qwen-asr"`, the default `"whisper-1"` placeholder is resolved to `"Qwen/Qwen3-ASR-1.7B"`
   - Ignored by the simple whisper-asr endpoint
 
 - **`api_key`**: Optional bearer token for remote endpoints
@@ -213,6 +220,48 @@ whisper-to-me --config-path
 - **`fallback_to_local`**: Whether to use the local FasterWhisper backend if remote transcription fails
   - Default: `false`
   - If enabled, the local model is loaded lazily on the first remote failure
+
+#### Context and Glossary (`[context]`)
+
+The context system feeds both ASR backends that support prompt/context fields and the optional LLM cleanup pass. For Qwen3-ASR under llama.cpp, the compact exact-spelling glossary is folded into the standard `prompt` field.
+
+- **`enabled`**: Enable context building
+  - Default: `false`
+
+- **`terms`**: Global pinned glossary terms, always included when context is enabled
+  - Use this for stable terms such as `"Qwen ASR"`, `"ROCm"`, `"Ollama"`, `"Proxmox"`, and project names
+
+- **`rules`**: Per-window context rules keyed by app/window title
+  - Rule `terms` and `asr_terms` are added to the ASR glossary when the rule matches
+
+- **`rolling_glossary_enabled`**: Learn technical terms from successful dictations during the current focused context
+  - Default: `true`
+  - Runtime-only; not persisted to disk
+
+- **`rolling_glossary_reset_on_context_change`**: Reset learned terms when the focused app/window context changes
+  - Default: `true`
+  - This keeps a fresh Pi session from inheriting stale terms from an unrelated one
+
+- **`rolling_glossary_max_terms`**: Maximum learned terms kept in memory
+  - Default: `120`
+
+- **`rolling_glossary_context_terms`**: Maximum learned terms rendered into the ASR prompt
+  - Default: `40`
+
+Example:
+
+```toml
+[context]
+enabled = true
+terms = ["Qwen ASR", "Qwen3-ASR", "ROCm", "Ollama", "AMD APU", "Proxmox"]
+rolling_glossary_enabled = true
+rolling_glossary_reset_on_context_change = true
+
+[context.rules.pi]
+match_title = ["π -"]
+hint = "User is dictating to pi, a coding AI agent."
+terms = ["whisper-to-me", "subagent", "tool call", "workspace"]
+```
 
 #### Recording Settings (`[recording]`)
 
@@ -412,8 +461,8 @@ The system tray icon shows:
 2. **Global Hotkey Detection**: Monitors for configured trigger key across all applications
 3. **Audio Recording**: Captures microphone input while key is held
 4. **Speech Processing**: Uses the configured transcription backend:
-   local FasterWhisper, a simple remote whisper-asr endpoint, or an
-   OpenAI-compatible transcription endpoint
+   local FasterWhisper, a simple remote whisper-asr endpoint, Qwen3-ASR under
+   llama.cpp, or another OpenAI-compatible transcription endpoint
 5. **Keystroke Simulation**: Types the transcribed text directly into the
    active application
 6. **System Integration**: Shows status in system tray with visual feedback

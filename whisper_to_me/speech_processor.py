@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 import urllib.error
 import urllib.request
 import uuid
@@ -18,11 +19,23 @@ import numpy as np
 import soundfile as sf
 from faster_whisper import WhisperModel
 
+from whisper_to_me.config_constants import (
+    DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
+    DEFAULT_QWEN_ASR_MODEL,
+)
 from whisper_to_me.logger import get_logger
 
 _LOCAL_BACKEND = "local"
+_QWEN_ASR_BACKEND = "qwen-asr"
 _SIMPLE_REMOTE_BACKENDS = {"remote", "whisper-asr"}
 _OPENAI_BACKEND = "openai"
+_OPENAI_COMPATIBLE_BACKENDS = {_OPENAI_BACKEND, _QWEN_ASR_BACKEND}
+_QWEN_ASR_SHORT_AUDIO_CONTEXT_THRESHOLD_SECONDS = 1.0
+_QWEN_ASR_MAX_CONTEXT_CHARS = 400
+_QWEN_ASR_TEXT_PREFIX = re.compile(
+    r"^\s*language\s+([^<\r\n]+)<asr_text>",
+    re.IGNORECASE,
+)
 
 
 class SpeechProcessor:
@@ -58,10 +71,11 @@ class SpeechProcessor:
         speech_pad_ms: int = 400,
         transcription_backend: str = _LOCAL_BACKEND,
         remote_url: str = "",
-        remote_model: str = "whisper-1",
+        remote_model: str = DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
         remote_api_key: str = "",
         remote_timeout: int = 30,
         remote_fallback_to_local: bool = False,
+        context_builder: Any = None,
     ):
         """
         Initialize the speech processor.
@@ -85,12 +99,13 @@ class SpeechProcessor:
             hotwords: Optional hotwords/context words for faster-whisper
             min_silence_duration_ms: Minimum duration of silence to split segments (in milliseconds)
             speech_pad_ms: Amount of padding to keep around detected speech (in milliseconds)
-            transcription_backend: "local", "whisper-asr"/"remote", or "openai"
+            transcription_backend: "local", "whisper-asr"/"remote", "qwen-asr", or "openai"
             remote_url: Remote transcription endpoint URL
             remote_model: Model field for OpenAI-compatible endpoints
             remote_api_key: Optional bearer token for remote endpoints
             remote_timeout: HTTP timeout in seconds
             remote_fallback_to_local: Fall back to local FasterWhisper if remote transcription fails
+            context_builder: Optional shared context builder for ASR-capable remote backends
         """
         self.model_size = model_size
         self.device = device
@@ -116,6 +131,7 @@ class SpeechProcessor:
         self.remote_api_key = remote_api_key
         self.remote_timeout = remote_timeout
         self.remote_fallback_to_local = remote_fallback_to_local
+        self.context_builder = context_builder
         self.model: WhisperModel | None = None
         self.logger = get_logger()
 
@@ -364,24 +380,40 @@ class SpeechProcessor:
 
         wav_bytes = self._encode_wav(audio_data)
         url = self._resolve_remote_url()
+        audio_duration = len(audio_data) / 16000
 
         if self.transcription_backend in _SIMPLE_REMOTE_BACKENDS:
-            fields = self._remote_transcription_fields(include_nonstandard=True)
-            response = self._post_multipart(url, wav_bytes, fields=fields)
-        elif self.transcription_backend == _OPENAI_BACKEND:
-            fields = self._remote_transcription_fields(include_nonstandard=False)
-            response = self._post_multipart(url, wav_bytes, fields=fields)
+            include_nonstandard = True
+        elif self.transcription_backend in _OPENAI_COMPATIBLE_BACKENDS:
+            include_nonstandard = False
         else:
             raise RuntimeError(
                 f"Unknown transcription backend: {self.transcription_backend}"
             )
 
+        fields = self._remote_transcription_fields(
+            include_nonstandard=include_nonstandard,
+            audio_duration=audio_duration,
+        )
+        response, response_body = self._post_multipart(url, wav_bytes, fields=fields)
+
         text = str(response.get("text") or "").strip()
+        detected_language = ""
+        if self.transcription_backend == _QWEN_ASR_BACKEND:
+            text, detected_language = self._normalise_qwen_asr_text(text)
+        if not text:
+            self.logger.warning(
+                "Remote transcription returned empty text. "
+                f"Response body: {self._truncate_for_log(response_body)}",
+                "speech",
+            )
         duration = self._coerce_float(
             response.get("duration_seconds", response.get("duration")),
             default=len(audio_data) / 16000,
         )
-        language = str(response.get("language") or self.language or "")
+        language = str(
+            response.get("language") or detected_language or self.language or ""
+        )
         confidence = self._coerce_float(
             response.get("language_probability", response.get("confidence")),
             default=0.0,
@@ -389,21 +421,42 @@ class SpeechProcessor:
 
         return text, duration, language, confidence
 
-    def _remote_transcription_fields(self, include_nonstandard: bool) -> dict[str, str]:
+    def _remote_transcription_fields(
+        self,
+        include_nonstandard: bool,
+        audio_duration: float | None = None,
+    ) -> dict[str, str]:
         """Build multipart form fields for remote transcription services."""
         fields = {
-            "model": self.remote_model or "whisper-1",
+            "model": self._resolve_remote_model(),
             "response_format": "json",
         }
         if self.language is not None:
             fields["language"] = self.language
-        if self.initial_prompt:
-            # OpenAI-compatible APIs call this field "prompt". The local service
-            # accepts both "prompt" and "initial_prompt".
+
+        asr_context = ""
+        if include_nonstandard or self.transcription_backend == _QWEN_ASR_BACKEND:
+            asr_context = self._build_asr_context(audio_duration=audio_duration)
+            if asr_context:
+                self.logger.debug(
+                    f"Using ASR context ({len(asr_context)} chars)", "speech"
+                )
+
+        if self.transcription_backend == _QWEN_ASR_BACKEND:
+            # llama.cpp exposes Qwen3-ASR through the OpenAI transcription schema,
+            # which has one prompt field and no separate context field.
+            prompt_parts = [part for part in (asr_context, self.initial_prompt) if part]
+            if prompt_parts:
+                fields["prompt"] = "\n\n".join(prompt_parts)
+        elif self.initial_prompt:
             fields["prompt"] = self.initial_prompt
+
         fields["temperature"] = str(self.temperature)
 
         if include_nonstandard:
+            if asr_context:
+                fields["context"] = asr_context
+
             fields.update(
                 {
                     "task": self.task,
@@ -422,7 +475,7 @@ class SpeechProcessor:
                     ),
                 }
             )
-            if self.initial_prompt:
+            if self.initial_prompt and self.transcription_backend != _QWEN_ASR_BACKEND:
                 fields["initial_prompt"] = self.initial_prompt
             if self.hallucination_silence_threshold is not None:
                 fields["hallucination_silence_threshold"] = str(
@@ -432,6 +485,56 @@ class SpeechProcessor:
                 fields["hotwords"] = self.hotwords
         return fields
 
+    def _resolve_remote_model(self) -> str:
+        """Resolve the model name to send to the selected remote backend."""
+        configured = (self.remote_model or "").strip()
+        if self.transcription_backend == _QWEN_ASR_BACKEND and (
+            not configured or configured == DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+        ):
+            return DEFAULT_QWEN_ASR_MODEL
+        return configured or DEFAULT_OPENAI_TRANSCRIPTION_MODEL
+
+    def _build_asr_context(self, audio_duration: float | None = None) -> str:
+        """Build ASR context if a shared context builder is configured."""
+        if not self.context_builder:
+            return ""
+        if (
+            self.transcription_backend == _QWEN_ASR_BACKEND
+            and audio_duration is not None
+            and audio_duration < _QWEN_ASR_SHORT_AUDIO_CONTEXT_THRESHOLD_SECONDS
+        ):
+            self.logger.debug(
+                f"Skipping ASR context for short Qwen-ASR clip ({audio_duration:.2f}s)",
+                "speech",
+            )
+            return ""
+        try:
+            context = str(self.context_builder.build_asr_context() or "").strip()
+        except Exception as e:
+            self.logger.debug(f"Could not build ASR context: {e}", "speech")
+            return ""
+
+        if (
+            self.transcription_backend == _QWEN_ASR_BACKEND
+            and len(context) > _QWEN_ASR_MAX_CONTEXT_CHARS
+        ):
+            self.logger.debug(
+                "Truncating Qwen-ASR context "
+                f"from {len(context)} to {_QWEN_ASR_MAX_CONTEXT_CHARS} chars",
+                "speech",
+            )
+            return context[:_QWEN_ASR_MAX_CONTEXT_CHARS].rstrip()
+        return context
+
+    @staticmethod
+    def _normalise_qwen_asr_text(text: str) -> tuple[str, str]:
+        """Strip llama.cpp's Qwen3-ASR metadata prefix from transcript text."""
+        match = _QWEN_ASR_TEXT_PREFIX.match(text)
+        if not match:
+            return text.strip(), ""
+        language = match.group(1).strip()
+        return text[match.end() :].strip(), language
+
     @staticmethod
     def _bool_field(value: bool) -> str:
         return "true" if value else "false"
@@ -439,10 +542,12 @@ class SpeechProcessor:
     def _resolve_remote_url(self) -> str:
         """Resolve the configured remote URL for the selected backend."""
         url = self.remote_url.rstrip("/")
-        if self.transcription_backend != _OPENAI_BACKEND:
+        if self.transcription_backend not in _OPENAI_COMPATIBLE_BACKENDS:
             return self.remote_url
 
-        endpoint = "audio/translations" if self.task == "translate" else "audio/transcriptions"
+        endpoint = (
+            "audio/translations" if self.task == "translate" else "audio/transcriptions"
+        )
         if url.endswith("/audio/transcriptions") or url.endswith("/audio/translations"):
             return url
         if url.endswith("/v1"):
@@ -458,7 +563,7 @@ class SpeechProcessor:
 
     def _post_multipart(
         self, url: str, wav_bytes: bytes, fields: dict[str, str]
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], str]:
         """POST multipart/form-data with a WAV file and parse the JSON response."""
         boundary = f"----whisper-to-me-{uuid.uuid4().hex}"
         body = bytearray()
@@ -508,7 +613,15 @@ class SpeechProcessor:
 
         if not isinstance(parsed, dict):
             raise RuntimeError("Transcription service returned non-object JSON")
-        return parsed
+        return parsed, response_body
+
+    @staticmethod
+    def _truncate_for_log(value: str, limit: int = 2000) -> str:
+        """Make potentially large remote responses safe to print in one log line."""
+        single_line = value.replace("\n", "\\n")
+        if len(single_line) <= limit:
+            return single_line
+        return f"{single_line[:limit]}… [truncated {len(single_line) - limit} chars]"
 
     @staticmethod
     def _coerce_float(value: Any, default: float) -> float:

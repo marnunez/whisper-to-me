@@ -118,6 +118,7 @@ class TextProcessor:
         thinking: bool | str = False,
         contexts: dict[str, dict[str, Any]] | None = None,
         display_backend: Any = None,
+        context_builder: Any = None,
     ):
         """
         Initialize the text processor.
@@ -132,8 +133,9 @@ class TextProcessor:
             system_prompt: Custom system prompt (empty = use default)
             timeout: Timeout in seconds for LLM calls
             thinking: False to disable, True to enable, "low" for budget thinking
-            contexts: Window context definitions {name: {match, hint, terms}}
+            contexts: Legacy window context definitions {name: {match, hint, terms}}
             display_backend: DisplayBackend for focused window detection
+            context_builder: Optional shared context builder for ASR/processing context
         """
         self.enabled = enabled
         self.backend = backend
@@ -146,6 +148,7 @@ class TextProcessor:
         self.thinking = thinking
         self.contexts = contexts or {}
         self.display_backend = display_backend
+        self.context_builder = context_builder
         self.logger = get_logger()
 
         if self.enabled:
@@ -169,6 +172,14 @@ class TextProcessor:
 
     def _get_context_prompt(self) -> str:
         """Get context-specific prompt addition based on the focused window."""
+        if self.context_builder:
+            try:
+                context = self.context_builder.build_processing_context()
+                if context:
+                    return context
+            except Exception as e:
+                self.logger.debug(f"Could not build processing context: {e}", "processing")
+
         from whisper_to_me.display_backend import get_focused_window
 
         app, title = get_focused_window(self.display_backend)

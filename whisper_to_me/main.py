@@ -27,6 +27,7 @@ import subprocess
 from whisper_to_me.audio_device_manager import AudioDeviceManager
 from whisper_to_me.audio_recorder import AudioRecorder
 from whisper_to_me.config import AppConfig, ConfigManager
+from whisper_to_me.context_builder import ContextBuilder
 from whisper_to_me.display_backend import DisplayBackend, resolve_backend
 from whisper_to_me.hotkey_manager import HotkeyManager
 from whisper_to_me.keystroke_handler import KeystrokeHandler
@@ -122,6 +123,11 @@ class WhisperToMe:
                     f"Failed to initialize default audio device: {e}", "audio"
                 )
                 raise
+
+        self.context_builder = ContextBuilder(
+            self.config.context,
+            display_backend=self.display_backend,
+        )
         self.speech_processor = SpeechProcessor(
             model_size=self.config.general.model,
             device=self.config.general.device,
@@ -149,6 +155,7 @@ class WhisperToMe:
             remote_api_key=self.config.transcription.api_key,
             remote_timeout=self.config.transcription.timeout,
             remote_fallback_to_local=self.config.transcription.fallback_to_local,
+            context_builder=self.context_builder,
         )
         self.keystroke_handler = KeystrokeHandler(
             backend=self.display_backend,
@@ -168,6 +175,7 @@ class WhisperToMe:
             thinking=self.config.processing.thinking,
             contexts=self.config.processing.contexts,
             display_backend=self.display_backend,
+            context_builder=self.context_builder,
         )
 
         # Initialize tray icon if enabled
@@ -251,17 +259,23 @@ class WhisperToMe:
         old_device = self.config.general.device
         old_advanced = self.config.advanced
         old_transcription = self.config.transcription
+        old_context = self.config.context
 
         self.config = new_config
         self._update_from_config()
+        self.context_builder = ContextBuilder(
+            self.config.context,
+            display_backend=self.display_backend,
+        )
 
-        # Update speech processor if language/model/device/transcription settings changed
+        # Update speech processor if language/model/device/transcription/context settings changed
         if (
             old_language != new_config.general.language
             or old_model != new_config.general.model
             or old_device != new_config.general.device
             or old_advanced != new_config.advanced
             or old_transcription != new_config.transcription
+            or old_context != new_config.context
         ):
             if old_language != new_config.general.language:
                 self.logger.info(
@@ -308,6 +322,7 @@ class WhisperToMe:
                 remote_api_key=new_config.transcription.api_key,
                 remote_timeout=new_config.transcription.timeout,
                 remote_fallback_to_local=new_config.transcription.fallback_to_local,
+                context_builder=self.context_builder,
             )
 
         # Reinitialize text processor with new profile settings
@@ -323,6 +338,7 @@ class WhisperToMe:
             thinking=new_config.processing.thinking,
             contexts=new_config.processing.contexts,
             display_backend=self.display_backend,
+            context_builder=self.context_builder,
         )
 
         # Save the profile switch
@@ -537,6 +553,9 @@ class WhisperToMe:
                         )
                     self.logger.debug(f"Processed text: '{text}'", "processing")
 
+                if self.context_builder:
+                    self.context_builder.observe_text(text)
+
                 self.keystroke_handler.type_text_fast(
                     text, self.config.general.trailing_space
                 )
@@ -636,8 +655,8 @@ Examples:
     )
     parser.add_argument(
         "--transcription-backend",
-        choices=["local", "whisper-asr", "remote", "openai"],
-        help="Speech-to-text backend: local FasterWhisper, simple remote whisper-asr, or OpenAI-compatible",
+        choices=["local", "whisper-asr", "remote", "qwen-asr", "openai"],
+        help="Speech-to-text backend: local FasterWhisper, simple remote whisper-asr, qwen-asr, or OpenAI-compatible",
     )
     parser.add_argument(
         "--transcription-url",
@@ -645,7 +664,7 @@ Examples:
     )
     parser.add_argument(
         "--transcription-model",
-        help="Remote model name for OpenAI-compatible transcription endpoints",
+        help="Remote model name for transcription endpoints, e.g. whisper-1 or Qwen/Qwen3-ASR-1.7B",
     )
     parser.add_argument(
         "--transcription-api-key",

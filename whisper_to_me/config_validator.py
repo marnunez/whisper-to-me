@@ -36,7 +36,7 @@ class ConfigValidator:
     VALID_RECORDING_MODES = {"push-to-talk", "tap-mode"}
 
     # Valid transcription backends
-    VALID_TRANSCRIPTION_BACKENDS = {"local", "whisper-asr", "remote", "openai"}
+    VALID_TRANSCRIPTION_BACKENDS = {"local", "whisper-asr", "remote", "qwen-asr", "openai"}
 
     def __init__(self):
         """Initialize the configuration validator."""

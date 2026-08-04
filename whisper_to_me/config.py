@@ -15,6 +15,8 @@ import tomli_w
 
 from whisper_to_me.config_constants import (
     ADVANCED_SECTION,
+    CONTEXT_SECTION,
+    DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
     DEFAULT_PROFILE,
     GENERAL_SECTION,
     PROCESSING_SECTION,
@@ -90,6 +92,25 @@ class GeneralConfig:
 
 
 @dataclass
+class ContextConfig:
+    """Shared context registry for ASR and LLM post-processing."""
+
+    enabled: bool = False
+    include_window_title: bool = True
+    base: str = ""
+    asr_prompt: str = ""
+    processing_prompt: str = ""
+    terms: list[str] = field(default_factory=list)
+    rolling_glossary_enabled: bool = True
+    rolling_glossary_reset_on_context_change: bool = True
+    rolling_glossary_max_terms: int = 120
+    rolling_glossary_context_terms: int = 40
+    max_asr_chars: int = 12000
+    max_processing_chars: int = 12000
+    rules: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+
+@dataclass
 class ProcessingConfig:
     """LLM post-processing configuration."""
 
@@ -112,7 +133,7 @@ class TranscriptionConfig:
 
     backend: str = TranscriptionBackends.LOCAL
     url: str = ""
-    model: str = "whisper-1"
+    model: str = DEFAULT_OPENAI_TRANSCRIPTION_MODEL
     api_key: str = ""
     timeout: int = 30
     fallback_to_local: bool = False
@@ -128,6 +149,7 @@ class AppConfig:
     advanced: AdvancedConfig
     processing: ProcessingConfig
     transcription: TranscriptionConfig = field(default_factory=TranscriptionConfig)
+    context: ContextConfig = field(default_factory=ContextConfig)
     profiles: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -255,10 +277,25 @@ class ConfigManager:
             TRANSCRIPTION_SECTION: {
                 "backend": TranscriptionBackends.LOCAL,
                 "url": "",
-                "model": "whisper-1",
+                "model": DEFAULT_OPENAI_TRANSCRIPTION_MODEL,
                 "api_key": "",
                 "timeout": 30,
                 "fallback_to_local": False,
+            },
+            CONTEXT_SECTION: {
+                "enabled": False,
+                "include_window_title": True,
+                "base": "",
+                "asr_prompt": "",
+                "processing_prompt": "",
+                "terms": [],
+                "rolling_glossary_enabled": True,
+                "rolling_glossary_reset_on_context_change": True,
+                "rolling_glossary_max_terms": 120,
+                "rolling_glossary_context_terms": 40,
+                "max_asr_chars": 12000,
+                "max_processing_chars": 12000,
+                "rules": {},
             },
             PROFILES_SECTION: {},
         }
@@ -370,6 +407,9 @@ class ConfigManager:
                     config_dict[TRANSCRIPTION_SECTION], TranscriptionConfig
                 )
             ),
+            context=ContextConfig(
+                **self._filter_config_fields(config_dict[CONTEXT_SECTION], ContextConfig)
+            ),
             profiles=config_dict[PROFILES_SECTION],
         )
 
@@ -395,6 +435,7 @@ class ConfigManager:
             ADVANCED_SECTION: asdict(self._config.advanced),
             PROCESSING_SECTION: asdict(self._config.processing),
             TRANSCRIPTION_SECTION: asdict(self._config.transcription),
+            CONTEXT_SECTION: asdict(self._config.context),
             PROFILES_SECTION: self._config.profiles,
         }
 
@@ -437,6 +478,7 @@ class ConfigManager:
             advanced=AdvancedConfig(**asdict(config.advanced)),
             processing=ProcessingConfig(**asdict(config.processing)),
             transcription=TranscriptionConfig(**asdict(config.transcription)),
+            context=ContextConfig(**asdict(config.context)),
             profiles=config.profiles,
         )
 
